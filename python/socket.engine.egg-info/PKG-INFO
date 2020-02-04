@@ -1,0 +1,14 @@
+Metadata-Version: 2.1
+Name: socket.engine
+Version: 0.0.1
+Summary: A universal communication engine
+Home-page: https://github.com/0xJeremy/socket.engine
+Author: Jeremy Kanovsky
+Author-email: kanovsky.jeremy@gmail.com
+License: UNKNOWN
+Description: # socket.engine Universal Communication Library
+        
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Description-Content-Type: text/markdown

@@ -1,0 +1,6 @@
+README.md
+setup.py
+socket.engine.egg-info/PKG-INFO
+socket.engine.egg-info/SOURCES.txt
+socket.engine.egg-info/dependency_links.txt
+socket.engine.egg-info/top_level.txt
