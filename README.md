@@ -1,5 +1,10 @@
 # socket.engine Universal Communication Library
 
+### Protocols to Support
+- [ ] Local Data Socket
+- [ ] TCP/IP Socket
+- [ ] Serial Communication (UART, I2C, SPI, CAN)
+
 ### Languages to Support
 - [ ] Python
 - [ ] MicroPython
