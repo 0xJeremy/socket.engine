@@ -4,6 +4,7 @@ import cv2
 import base64
 from json import dumps as dictToJson
 from json import loads as jsonToDict
+from json.decoder import JSONDecodeError
 
 #################
 ### CONSTANTS ###
@@ -16,7 +17,7 @@ IMG_MSG_E = '"}'.encode()
 
 ADDR = '127.0.0.1'
 PORT = 8080
-TIMEOUT = 200
+TIMEOUT = 2
 SIZE = 256
 
 ####################
@@ -24,25 +25,35 @@ SIZE = 256
 ####################
 
 class client:
-	def __init__(self, addr='127.0.0.1', port=8080):
+	def __init__(self, addr='127.0.0.1', timeout=TIMEOUT, port=8080, size=SIZE, open=True):
 		self.addr = addr
 		self.port = port
 		self.canWrite = True
 		self.channels = {}
+		self.timeout = timeout
+		self.size = size
 		self.lock = Lock()
 		self.opened = False
 		self.stopped = False
-		self.open()
-		self.start()
+		if open:
+			self.open()
+
+	def set_timeout(self, time):
+		self.timeout = time
 
 	def open(self):
 		while True:
 			try:
 				self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-				self.socket.setdefaulttimeout(self.timeout)
+				self.socket.settimeout(self.timeout)
+				self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 				self.socket.connect((self.addr, self.port))
 				break
-			except: continue
+			except OSError as e:
+				raise RuntimeError("Socket address in use: {}".format(e))
+				return
+			except socket.timeout:
+				continue
 		self.opened = True
 
 	def start(self):
@@ -53,6 +64,7 @@ class client:
 		tmp = ''
 		while True:
 			if self.stopped:
+				self.socket.close()
 				return
 
 			try:
@@ -62,7 +74,12 @@ class client:
 				if(msg['type'] == ACK):
 					self.canWrite = True
 				tmp = ''
-			except: continue
+			except JSONDecodeError: 
+				continue
+			except socket.timeout:
+				continue
+			except OSError:
+				self.close()
 
 	def get(self, channel):
 		if channel in self.channels.keys():

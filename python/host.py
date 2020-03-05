@@ -4,6 +4,7 @@ import cv2
 import base64
 from json import dumps as dictToJson
 from json import loads as jsonToDict
+from json.decoder import JSONDecodeError
 
 #################
 ### CONSTANTS ###
@@ -16,7 +17,7 @@ IMG_MSG_E = '"}'.encode()
 
 ADDR = '127.0.0.1'
 PORT = 8080
-TIMEOUT = 200
+TIMEOUT = 2
 SIZE = 256
 
 ########################
@@ -53,7 +54,10 @@ class _connection:
 				if(msg['type'] == ACK):
 					self.canWrite = True
 				tmp = ''
-			except: continue
+			except JSONDecodeError: 
+				continue
+			except socket.timeout:
+				continue
 
 	def get(self, channel):
 		if channel in self.channels.keys():
@@ -92,7 +96,7 @@ class _connection:
 ##################
 
 class host:
-	def __init__(self, addr=ADDR, port=PORT, timeout=TIMEOUT, size=SIZE):
+	def __init__(self, addr=ADDR, port=PORT, timeout=TIMEOUT, size=SIZE, open=True):
 		self.addr = addr
 		self.port = port
 		self.timeout = timeout
@@ -101,17 +105,26 @@ class host:
 		self.clients = []
 		self.stopped = False
 		self.opened = False
-		self.open()
+		if open:
+			self.open()
+
+	def set_timeout(self, time):
+		self.timeout = time
 
 	def open(self):
 		while True:
 			try:
 				self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-				self.socket.setdefaulttimeout(self.timeout)
+				self.socket.settimeout(self.timeout)
+				self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 				self.socket.bind(('', self.port))
 				self.socket.listen()
 				break
-			except: continue
+			except OSError as e:
+				raise RuntimeError("Socket address in use: {}".format(e))
+				return
+			except socket.timeout:
+				continue
 		self.opened = True
 
 	def start(self):
@@ -122,12 +135,17 @@ class host:
 		tmp = ''
 		while True:
 			if self.stopped:
+				self.socket.close()
 				return
 
-			c, addr = self.socket.accept()
-			if addr not in self.connections:
-				self.connections.append(addr)
-				self.clients.append(_connection(c, addr, self.timeout, self.size))
+			try:
+				c, addr = self.socket.accept()
+				if addr not in self.connections:
+					self.connections.append(addr)
+					self.clients.append(_connection(c, addr, self.timeout, self.size))
+			except socket.timeout:
+				continue
+
 
 	def get_ALL(self, channel):
 		data = []
@@ -157,6 +175,7 @@ class host:
 			c.writeImg(data)
 
 	def close(self):
+		self.opened = False
 		for c in self.clients:
 			c.close()
 		self.stopped = True
