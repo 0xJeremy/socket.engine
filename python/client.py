@@ -1,24 +1,16 @@
 import socket
 from threading import Thread, Lock
-import cv2
-import base64
 from json import dumps as dictToJson
 from json import loads as jsonToDict
 from json.decoder import JSONDecodeError
+from common import encodeImg
 
 #################
 ### CONSTANTS ###
 #################
 
-ACK = 'ACK'
-NEWLINE = '\n'.encode()
-IMG_MSG_S = '{"type": "image", "data": "'.encode()
-IMG_MSG_E = '"}'.encode()
-
-ADDR = '127.0.0.1'
-PORT = 8080
-TIMEOUT = 2
-SIZE = 256
+from constants import ACK, NEWLINE, IMG_MSG_S, IMG_MSG_E
+from constants import ADDR, PORT, TIMEOUT, SIZE
 
 ####################
 ### CLIENT CLASS ###
@@ -88,10 +80,6 @@ class client:
 			return self.channels[channel]
 		return None
 
-	def encodeImg(self, img):
-		success, encoded_img = cv2.imencode('.png', img)
-		return base64.b64encode(encoded_img)
-
 	def writeLock(self, channel, data):
 		with self.lock:
 			self.write(channel, data)
@@ -109,7 +97,7 @@ class client:
 	def writeImg(self, data):
 		if self.canWrite:
 			self.canWrite = False
-			msg = IMG_MSG_S + self.encodeImg(data) + IMG_MSG_E
+			msg = IMG_MSG_S + encodeImg(data) + IMG_MSG_E
 			self.socket.sendall(msg + NEWLINE)
 
 	def close(self):

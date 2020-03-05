@@ -1,5 +1,5 @@
-from client import client as c
-from host import host as h
+from client import client as _client
+from host import host as _host
 
-client = c
-host = h
+client = _client
+host = _host

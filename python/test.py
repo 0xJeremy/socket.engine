@@ -1,16 +1,18 @@
-from client import client
-from host import host
+from socketengine import client
+from socketengine import host
 import time
 from threading import Thread
 
 TIMEOUT = 0.5
 DELAY = 5
+DEBUG = False
 
 def s(a=DELAY):
 	time.sleep(a)
 
 def report(text):
-	print("\033[93m[{}]\033[0m".format(text))
+	if DEBUG:
+		print("\033[93m[{}]\033[0m".format(text))
 
 def success(text):
 	print("\033[32m[{}]\033[0m".format(text))
@@ -48,8 +50,6 @@ def test_async_ordering():
 	assert(h.opened)
 	report("Host started")
 	c.open()
-	# while(not c.opened):
-	# 	pass
 	c.start()
 	assert(c.opened)
 	report("Client started")
