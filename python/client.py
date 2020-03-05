@@ -50,6 +50,8 @@ class client:
 				self.socket.connect((self.addr, self.port))
 				break
 			except OSError as e:
+				if type(e) is ConnectionRefusedError:
+					continue
 				raise RuntimeError("Socket address in use: {}".format(e))
 				return
 			except socket.timeout:

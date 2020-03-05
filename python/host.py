@@ -31,6 +31,7 @@ class _connection:
 		self.canWrite = True
 		self.channels = {}
 		self.timeout = timeout
+		self.socket.settimeout(self.timeout)
 		self.size = size
 		self.stopped = False
 		self.lock = Lock()
@@ -135,6 +136,8 @@ class host:
 		tmp = ''
 		while True:
 			if self.stopped:
+				for c in self.clients:
+					c.close()
 				self.socket.close()
 				return
 
