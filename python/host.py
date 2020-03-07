@@ -42,28 +42,36 @@ class _connection:
 
 			try:
 				tmp += self.socket.recv(self.size).decode()
-				msg = jsonToDict(tmp)
-				self.channels[msg['type']] = msg['data']
-				if(msg['type'] == ACK):
-					self.canWrite = True
-				tmp = ''
-			except JSONDecodeError: 
-				continue
 			except socket.timeout:
 				continue
+			except OSError:
+				self.close()
+
+			if tmp != '' and tmp != '\n':
+				data = tmp.split('\n')
+				for i in range(len(data)):
+					try:
+						msg = jsonToDict(data[i])
+						self.channels[msg['type']] = msg['data']
+						if(msg['type'] == ACK):
+							self.canWrite = True
+						tmp = ''
+					except JSONDecodeError:
+						tmp = ''.join(data[i:])
+						break
 
 	def get(self, channel):
-		if channel in self.channels.keys():
-			return self.channels[channel]
-		return None
+		with self.lock:
+			if channel in self.channels.keys():
+				return self.channels[channel]
+			return None
 
 	def writeLock(self, channel, data):
 		with self.lock:
 			self.write(channel, data)
 
 	def write(self, channel, data):
-		if self.canWrite:
-			self.canWrite = False
+		with self.lock:
 			msg = {'type': channel, 'data': data}
 			self.socket.sendall(dictToJson(msg).encode() + NEWLINE)
 
