@@ -47,7 +47,7 @@ def test_connection_BOTH():
 	assert(h.stopped)
 	success("Connection test passed")
 
-test_connection_BOTH()
+# test_connection_BOTH()
 
 def test_async_ordering():
 	h = host(timeout=TIMEOUT, open=False)
@@ -69,7 +69,7 @@ def test_async_ordering():
 	report("Client closed")
 	success("Async Ordering test passed")
 
-test_async_ordering()
+# test_async_ordering()
 
 def test_empty_message():
 	h = host(timeout=TIMEOUT)
@@ -85,7 +85,7 @@ def test_empty_message():
 	h.close()
 	success("Empty messages test passed")
 
-test_empty_message()
+# test_empty_message()
 
 def test_host_messages():
 	h = host(timeout=TIMEOUT)
@@ -109,7 +109,7 @@ def test_host_messages():
 	h.close()
 	success("Client -> Host Passed")
 
-test_host_messages()
+# test_host_messages()
 
 def test_client_messages():
 	h = host(timeout=TIMEOUT)
@@ -137,7 +137,7 @@ def test_client_messages():
 	c.close()
 	success("Host -> Client Passed")
 
-test_client_messages()
+# test_client_messages()
 
 def test_bidirectional_messages():
 	h = host(timeout=TIMEOUT)
@@ -165,7 +165,7 @@ def test_bidirectional_messages():
 	c.close()
 	success("Host <-> Client Passed")
 
-test_bidirectional_messages()
+# test_bidirectional_messages()
 
 def test_high_speed_host():
 	h = host(timeout=TIMEOUT)
@@ -200,7 +200,7 @@ def test_high_speed_host():
 	h.close()
 	success("High Speed Host -> Client Passed")
 
-test_high_speed_host()
+# test_high_speed_host()
 
 def test_high_throughput_host():
 	h = host(timeout=TIMEOUT)
@@ -219,7 +219,7 @@ def test_high_throughput_host():
 	h.close()
 	success("High Throughput Host -> Client Passed")
 
-test_high_throughput_host()
+# test_high_throughput_host()
 
 def test_high_throughput_client():
 	h = host(timeout=TIMEOUT)
@@ -238,4 +238,26 @@ def test_high_throughput_client():
 	h.close()
 	success("High Throughput Client -> Host Passed")
 
-test_high_throughput_client()
+# test_high_throughput_client()
+
+def test_high_throughput_bidirectional():
+	h = host(timeout=TIMEOUT)
+	c = client(timeout=TIMEOUT)
+	h.start()
+	c.start()
+	report("Sockets started")
+	c.write("connected", True)
+	s(0.5)
+	for i in range(1000):
+		c.write("Test{}".format(i), text)
+		h.write_ALL("Test{}".format(i), text)
+	s(0.5)
+	for i in range(1000):
+		assert(h.get_ALL("Test{}".format(i)) == [text])
+	for i in range(1000):
+		assert(c.get("Test{}".format(i)) == text)
+	c.close()
+	h.close()
+	success("High Throughput Host <-> Client Passed")
+
+test_high_throughput_bidirectional()
