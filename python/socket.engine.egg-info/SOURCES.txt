@@ -4,3 +4,9 @@ socket.engine.egg-info/PKG-INFO
 socket.engine.egg-info/SOURCES.txt
 socket.engine.egg-info/dependency_links.txt
 socket.engine.egg-info/top_level.txt
+socketengine/__init__.py
+socketengine/client.py
+socketengine/common.py
+socketengine/constants.py
+socketengine/host.py
+socketengine/test.py

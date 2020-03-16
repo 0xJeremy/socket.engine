@@ -3,14 +3,14 @@ from threading import Thread, Lock
 from json import dumps as dictToJson
 from json import loads as jsonToDict
 from json.decoder import JSONDecodeError
-from common import encodeImg
+from .common import encodeImg
 
 #################
 ### CONSTANTS ###
 #################
 
-from constants import ACK, NEWLINE, IMG_MSG_S, IMG_MSG_E
-from constants import ADDR, PORT, TIMEOUT, SIZE
+from .constants import ACK, NEWLINE, IMG_MSG_S, IMG_MSG_E
+from .constants import ADDR, PORT, TIMEOUT, SIZE
 
 ########################
 ### CONNECTION CLASS ###

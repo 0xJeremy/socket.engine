@@ -3,14 +3,14 @@ from threading import Thread, Lock
 from json import dumps as dictToJson
 from json import loads as jsonToDict
 from json.decoder import JSONDecodeError
-from common import encodeImg
+from .common import encodeImg
 
 #################
 ### CONSTANTS ###
 #################
 
-from constants import ACK, NEWLINE, IMG_MSG_S, IMG_MSG_E
-from constants import ADDR, PORT, TIMEOUT, SIZE
+from .constants import ACK, NEWLINE, IMG_MSG_S, IMG_MSG_E
+from .constants import ADDR, PORT, TIMEOUT, SIZE
 
 ####################
 ### CLIENT CLASS ###
@@ -82,25 +82,6 @@ class client:
 					except JSONDecodeError:
 						tmp = ''.join(data[i:])
 						break
-
-			# try:
-			# 	tmp += self.socket.recv(self.size).decode()
-			# 	data = tmp.split('\n')
-			# 	msg = jsonToDict(data[0])
-			# 	self.channels[msg['type']] = msg['data']
-			# 	print("Got data {}".format(msg['data']))
-			# 	if(msg['type'] == ACK):
-			# 		self.canWrite = True
-			# 	if len(data) > 1:
-			# 		tmp = ''.join(data[1:])
-			# 	else:
-			# 		tmp = ''
-			# except JSONDecodeError: 
-			# 	continue
-			# except socket.timeout:
-			# 	continue
-			# except OSError:
-			# 	self.close()
 
 	def get(self, channel):
 		with self.lock:
