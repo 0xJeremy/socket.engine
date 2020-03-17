@@ -43,7 +43,7 @@ Please Note: Starting a socket.engine socket in Python is a blocking action and 
 
 ### CLIENT
 ```python
-from socketengine import CLIENT
+from socketengine import client
 
 c = client()
 c.start()

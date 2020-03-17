@@ -1,5 +1,4 @@
 # socket.engine
-# A universal communication engine
 
 ## Installation
 
@@ -33,7 +32,7 @@ h.start()
 while True:
 	data = h.get_ALL("test")
 
-	if data is not none:
+	if data is not None:
 		for item in data:
 			print(item)
 			break
