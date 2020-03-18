@@ -267,6 +267,53 @@ def stress_test_v4():
 	stress_test(stress=10, messages=5000)
 	success("Stress Test (v4) Passed ({:.5f} sec)".format(time.time()-start))
 
+def multi_host_stress_test(stress=5, messages=1000, ports=[8080, 8081, 8082]):
+	hosts = []
+	for port in ports:
+		hosts.append(host(timeout=TIMEOUT, port=port).start())
+	clients = []
+	for i in range(stress):
+		for port in ports:
+			c = client(timeout=TIMEOUT, port=port).start()
+			c.write("connected", True)
+			clients.append(c)
+	report("All sockets connected")
+	s()
+	for i in range(messages):
+		for c in clients:
+			c.write("Test{}".format(i), text)
+		for h in hosts:
+			h.write_ALL("Test{}".format(i), text)
+	report("All data written")
+	s()
+	for i in range(messages):
+		for h in hosts:
+			assert(h.get_ALL("Test{}".format(i)) == [text]*stress)
+	for i in range(messages):
+		for c in clients:
+			assert(c.get("Test{}".format(i)) == text)
+	report("All data asserted")
+	for c in clients:
+		c.close()
+	for h in hosts:
+		h.close()
+
+def multi_host_stress_test_v1():
+	start = time.time()
+	multi_host_stress_test()
+	success("Multi-Host Stress Test (v1) Passed ({:.5f} sec)".format(time.time()-start))
+
+def multi_host_stress_test_v2():
+	start = time.time()
+	multi_host_stress_test(stress=10, ports=range(8080, 8085))
+	success("Multi-Host Stress Test (v2) Passed ({:.5f} sec)".format(time.time()-start))
+
+def multi_host_stress_test_v3():
+	start = time.time()
+	multi_host_stress_test(ports=range(8080, 8089))
+	success("Multi-Host Stress Test (v3) Passed ({:.5f} sec)".format(time.time()-start))
+
+
 ###################
 ### TEST RUNNER ###
 ###################
@@ -281,12 +328,14 @@ def main(args):
 				test_host_messages, test_client_messages, test_bidirectional_messages,
 				test_high_speed_host, test_high_throughput_host, test_high_throughput_client,
 				test_high_throughput_bidirectional, stress_test_v1, stress_test_v2,
-				stress_test_v3, stress_test_v4]
+				stress_test_v3, stress_test_v4, multi_host_stress_test_v1,
+				multi_host_stress_test_v2, multi_host_stress_test_v3]
 	num = args.num or 1
 	for i in range(num):
 		for test in routines:
 			test()
-	success("\nAll tests completed successfully")
+	print()
+	success("All tests completed successfully")
 
 
 if __name__ == '__main__':
