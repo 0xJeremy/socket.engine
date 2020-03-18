@@ -104,7 +104,6 @@ class host:
 		self.opened = False
 		if open:
 			self.open()
-		return self
 
 	def set_timeout(self, time):
 		self.timeout = time

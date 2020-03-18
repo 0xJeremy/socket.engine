@@ -13,12 +13,18 @@
   "keywords": [
     "Socket",
     "TCP/IP",
-    "Python"
+    "Python",
+    "IPv4"
   ],
   "author": "Jeremy Kanovsky",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/0xJeremy/socket.engine/issues"
   },
-  "homepage": "https://github.com/0xJeremy/socket.engine#readme"
+  "homepage": "https://github.com/0xJeremy/socket.engine#readme",
+  "dependencies": {
+    "fs": "0.0.1-security",
+    "ip": "^1.1.5",
+    "net": "^1.0.2"
+  }
 }
