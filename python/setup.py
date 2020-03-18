@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="socket.engine",
-    version="0.1.3",
+    version="0.1.4",
     author="Jeremy Kanovsky",
     author_email="kanovsky.jeremy@gmail.com",
     description="A universal communication engine",

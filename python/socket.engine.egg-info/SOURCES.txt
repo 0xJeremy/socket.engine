@@ -9,4 +9,5 @@ socketengine/client.py
 socketengine/common.py
 socketengine/constants.py
 socketengine/host.py
-socketengine/test.py
+tests/__init__.py
+tests/test.py

@@ -17,7 +17,7 @@ from .constants import ADDR, PORT, TIMEOUT, SIZE
 ####################
 
 class client:
-	def __init__(self, addr='127.0.0.1', timeout=TIMEOUT, port=8080, size=SIZE, open=True):
+	def __init__(self, addr=ADDR, timeout=TIMEOUT, port=PORT, size=SIZE, open=True):
 		self.addr = addr
 		self.port = port
 		self.canWrite = True
@@ -29,6 +29,7 @@ class client:
 		self.stopped = False
 		if open:
 			self.open()
+		return self
 
 	def set_timeout(self, time):
 		self.timeout = time
@@ -61,8 +62,6 @@ class client:
 				self.socket.close()
 				return
 
-
-
 			try:
 				tmp += self.socket.recv(self.size).decode()
 			except socket.timeout:
@@ -92,21 +91,25 @@ class client:
 	def writeLock(self, channel, data):
 		with self.lock:
 			self.write(channel, data)
+		return self
 
 	def write(self, channel, data):
 		with self.lock:
 			msg = {'type': channel, 'data': data}
 			self.socket.sendall(dictToJson(msg).encode() + NEWLINE)
+		return self
 
 	def writeImgLock(self, data):
 		with self.lock:
 			self.writeImg(data)
+		return self
 
 	def writeImg(self, data):
 		if self.canWrite:
 			self.canWrite = False
 			msg = IMG_MSG_S + encodeImg(data) + IMG_MSG_E
 			self.socket.sendall(msg + NEWLINE)
+		return self
 
 	def close(self):
 		self.opened = False
