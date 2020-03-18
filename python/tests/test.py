@@ -5,7 +5,7 @@ from threading import Thread
 import argparse
 
 TIMEOUT = 0.5
-DELAY = 0.4
+DELAY = 0.5
 DEBUG = False
 
 ########################
@@ -211,6 +211,34 @@ def test_high_throughput_bidirectional():
 	h.close()
 	success("High Throughput Host <-> Client Passed")
 
+def stress_test_v1():
+	STRESS = 5
+	h = host(timeout=TIMEOUT)
+	h.start()
+	clients = []
+	for i in range(STRESS):
+		c = client(timeout=TIMEOUT).start()
+		c.write("connected", True)
+		clients.append(c)
+	report("All sockets connected")
+	s()
+	for i in range(1000):
+		for c in clients:
+			c.write("Test{}".format(i), text)
+		h.write_ALL("Test{}".format(i), text)
+	report("All data written")
+	s()
+	for i in range(1000):
+		assert(h.get_ALL("Test{}".format(i)) == [text]*STRESS)
+	for i in range(1000):
+		for c in clients:
+			assert(c.get("Test{}".format(i)) == text)
+	report("All data asserted")
+	for c in clients:
+		c.close()
+	h.close()
+	success("Stress Test (v1) Passed")		
+
 ###################
 ### TEST RUNNER ###
 ###################
@@ -224,7 +252,7 @@ def main(args):
 	routines = [test_connection_BOTH, test_async_ordering, test_empty_message, 
 				test_host_messages, test_client_messages, test_bidirectional_messages,
 				test_high_speed_host, test_high_throughput_host, test_high_throughput_client,
-				test_high_throughput_bidirectional]
+				test_high_throughput_bidirectional, stress_test_v1]
 	num = args.num or 1
 	for i in range(num):
 		for test in routines:

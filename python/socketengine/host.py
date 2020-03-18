@@ -104,6 +104,7 @@ class host:
 		self.opened = False
 		if open:
 			self.open()
+		return self
 
 	def set_timeout(self, time):
 		self.timeout = time
@@ -159,18 +160,22 @@ class host:
 	def writeLock_ALL(self, channel, data):
 		for c in self.clients:
 			self.writeLock(channel, data)
+		return self
 
 	def write_ALL(self, channel, data):
 		for c in self.clients:
 			c.write(channel, data)
+		return self
 
 	def writeImgLock_ALL(self, data):
 		for c in self.clients:
 			c.writeImg(data)
+		return self
 
 	def writeImg_ALL(self, data):
 		for c in self.clients:
 			c.writeImg(data)
+		return self
 
 	def close(self):
 		self.opened = False
