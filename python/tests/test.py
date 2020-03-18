@@ -1,22 +1,37 @@
-from client import client
-from host import host
+from socketengine import client
+from socketengine import host
 import time
 from threading import Thread
+import argparse
 
 TIMEOUT = 0.5
-DELAY = 5
+DELAY = 0.4
 DEBUG = False
+
+########################
+### HELPER FUNCTIONS ###
+########################
 
 def s(a=DELAY):
 	time.sleep(a)
 
 def report(text):
+	global DEBUG
 	if DEBUG:
 		print("\033[93m[{}]\033[0m".format(text))
 
 def success(text):
 	print("\033[32m[{}]\033[0m".format(text))
 	s(1)
+
+def initialize():
+	h = host(timeout=TIMEOUT)
+	c = client(timeout=TIMEOUT)
+	report("Sockets initialized")
+	h.start()
+	c.start()
+	report("Sockets started")
+	return h, c
 
 
 text = "Consulted he eagerness unfeeling deficient existence of. Calling nothing end fertile for venture way boy. Esteem spirit temper too say adieus who direct esteem. It esteems luckily mr or picture placing drawing no. Apartments frequently or motionless on reasonable projecting expression. Way mrs end gave tall walk fact bed. \
@@ -26,6 +41,9 @@ Death weeks early had their and folly timed put. Hearted forbade on an village y
 Yet remarkably appearance get him his projection. Diverted endeavor bed peculiar men the not desirous. Acuteness abilities ask can offending furnished fulfilled sex. Warrant fifteen exposed ye at mistake. Blush since so in noisy still built up an again. As young ye hopes no he place means. Partiality diminution gay yet entreaties admiration. In mr it he mention perhaps attempt pointed suppose. Unknown ye chamber of warrant of norland arrived. \
 Luckily friends do ashamed to do suppose. Tried meant mr smile so. Exquisite behaviour as to middleton perfectly. Chicken no wishing waiting am. Say concerns dwelling graceful six humoured. Whether mr up savings talking an. Active mutual nor father mother exeter change six did all. "
 
+##################
+### UNIT TESTS ###
+##################
 
 def test_connection_BOTH():
 	h = host(timeout=TIMEOUT)
@@ -39,15 +57,12 @@ def test_connection_BOTH():
 	assert(len(h.getClients()) is 1)
 	report("Open state verified")
 	c.close()
-	assert(not c.opened)
+	assert(not c.opened and c.stopped)
 	assert(c.stopped)
 	h.close()
 	report("Closed state verified")
-	assert(not h.opened)
-	assert(h.stopped)
+	assert(not h.opened and h.stopped)
 	success("Connection test passed")
-
-test_connection_BOTH()
 
 def test_async_ordering():
 	h = host(timeout=TIMEOUT, open=False)
@@ -69,14 +84,8 @@ def test_async_ordering():
 	report("Client closed")
 	success("Async Ordering test passed")
 
-test_async_ordering()
-
 def test_empty_message():
-	h = host(timeout=TIMEOUT)
-	c = client(timeout=TIMEOUT)
-	h.start()
-	c.start()
-	report("Sockets started")
+	h, c = initialize()
 	assert(c.get("Test") is None)
 	assert(c.get("Test2") is None)
 	assert(h.get_ALL("Test") == [])
@@ -85,22 +94,16 @@ def test_empty_message():
 	h.close()
 	success("Empty messages test passed")
 
-test_empty_message()
-
 def test_host_messages():
-	h = host(timeout=TIMEOUT)
-	c = client(timeout=TIMEOUT)
-	h.start()
-	c.start()
-	report("Sockets started")
+	h, c = initialize()
 	assert(h.get_ALL("Test") == [])
 	assert(h.get_ALL("Test2") == [])
 	c.write("Test", "test of port 1")
-	s(0.5)
+	s()
 	assert(h.get_ALL("Test") == ["test of port 1"])
 	assert(h.get_ALL("Test2") == [])
 	c.write("Test2", "test of port 2")
-	s(0.5)
+	s()
 	assert(h.get_ALL("Test") == ["test of port 1"])
 	assert(h.get_ALL("Test2") == ["test of port 2"])
 	assert(c.get("Test") is None)
@@ -109,26 +112,20 @@ def test_host_messages():
 	h.close()
 	success("Client -> Host Passed")
 
-test_host_messages()
-
 def test_client_messages():
-	h = host(timeout=TIMEOUT)
-	c = client(timeout=TIMEOUT)
-	h.start()
-	c.start()
-	report("Sockets started")
+	h, c = initialize()
 	assert(c.get("Test") is None)
 	assert(c.get("Test2") is None)
 	c.write("connected", True)
 	assert(c.get("Test") is None)
 	assert(c.get("Test2") is None)
-	s(0.5)
+	s()
 	h.write_ALL("Test", "test of port 1")
-	s(0.5)
+	s()
 	assert(c.get("Test") == "test of port 1")
 	assert(c.get("Test2") is None)
 	h.write_ALL("Test2", "test of port 2")
-	s(0.5)
+	s()
 	assert(c.get("Test") == "test of port 1")
 	assert(c.get("Test2") == "test of port 2")
 	assert(h.get_ALL("Test") == [])
@@ -137,26 +134,20 @@ def test_client_messages():
 	c.close()
 	success("Host -> Client Passed")
 
-test_client_messages()
-
 def test_bidirectional_messages():
-	h = host(timeout=TIMEOUT)
-	c = client(timeout=TIMEOUT)
-	h.start()
-	c.start()
-	report("Sockets started")
+	h, c = initialize()
 	assert(c.get("Test") is None)
 	assert(c.get("Test2") is None)
 	c.write("connected", True)
 	assert(c.get("Test") is None)
 	assert(c.get("Test2") is None)
-	s(0.5)
+	s()
 	h.write_ALL("Test", "test of port 1")
 	h.write_ALL("Test2", "test of port 2")
 	c.write("Test", "test of port 1")
 	s(0.1)
 	c.write("Test2", "test of port 2")
-	s(0.5)
+	s()
 	assert(c.get("Test") == "test of port 1")
 	assert(c.get("Test2") == "test of port 2")
 	assert(h.get_ALL("Test") == ["test of port 1"])
@@ -165,93 +156,53 @@ def test_bidirectional_messages():
 	c.close()
 	success("Host <-> Client Passed")
 
-test_bidirectional_messages()
-
 def test_high_speed_host():
-	h = host(timeout=TIMEOUT)
-	c = client(timeout=TIMEOUT)
-	h.start()
-	c.start()
-	report("Sockets started")
+	h, c = initialize()
 	c.write("connected", True)
-	s(0.5)
-	h.write_ALL("Test0", "test of port 0")
-	h.write_ALL("Test1", "test of port 1")
-	h.write_ALL("Test2", "test of port 2")
-	h.write_ALL("Test3", "test of port 3")
-	h.write_ALL("Test4", "test of port 4")
-	h.write_ALL("Test5", "test of port 5")
-	h.write_ALL("Test6", "test of port 6")
-	h.write_ALL("Test7", "test of port 7")
-	h.write_ALL("Test8", "test of port 8")
-	h.write_ALL("Test9", "test of port 9")
+	s()
+	for i in range(10):
+		h.write_ALL("Test{}".format(i), "test of port {}".format(i))
 	s(0.1)
-	assert(c.get("Test0") == "test of port 0")
-	assert(c.get("Test1") == "test of port 1")
-	assert(c.get("Test2") == "test of port 2")
-	assert(c.get("Test3") == "test of port 3")
-	assert(c.get("Test4") == "test of port 4")
-	assert(c.get("Test5") == "test of port 5")
-	assert(c.get("Test6") == "test of port 6")
-	assert(c.get("Test7") == "test of port 7")
-	assert(c.get("Test8") == "test of port 8")
-	assert(c.get("Test9") == "test of port 9")
+	for i in range(10):
+		assert(c.get("Test{}".format(i)) == "test of port {}".format(i))
 	c.close()
 	h.close()
 	success("High Speed Host -> Client Passed")
 
-test_high_speed_host()
-
 def test_high_throughput_host():
-	h = host(timeout=TIMEOUT)
-	c = client(timeout=TIMEOUT)
-	h.start()
-	c.start()
-	report("Sockets started")
+	h, c = initialize()
 	c.write("connected", True)
-	s(0.5)
+	s()
 	for i in range(1000):
 		h.write_ALL("Test{}".format(i), text)
-	s(0.5)
+	s()
 	for i in range(1000):
 		assert(c.get("Test{}".format(i)) == text)
 	c.close()
 	h.close()
 	success("High Throughput Host -> Client Passed")
 
-test_high_throughput_host()
-
 def test_high_throughput_client():
-	h = host(timeout=TIMEOUT)
-	c = client(timeout=TIMEOUT)
-	h.start()
-	c.start()
-	report("Sockets started")
+	h, c = initialize()
 	c.write("connected", True)
-	s(0.5)
+	s()
 	for i in range(1000):
 		c.write("Test{}".format(i), text)
-	s(0.5)
+	s()
 	for i in range(1000):
 		assert(h.get_ALL("Test{}".format(i)) == [text])
 	c.close()
 	h.close()
 	success("High Throughput Client -> Host Passed")
 
-test_high_throughput_client()
-
 def test_high_throughput_bidirectional():
-	h = host(timeout=TIMEOUT)
-	c = client(timeout=TIMEOUT)
-	h.start()
-	c.start()
-	report("Sockets started")
+	h, c = initialize()
 	c.write("connected", True)
-	s(0.5)
+	s()
 	for i in range(1000):
 		c.write("Test{}".format(i), text)
 		h.write_ALL("Test{}".format(i), text)
-	s(0.5)
+	s()
 	for i in range(1000):
 		assert(h.get_ALL("Test{}".format(i)) == [text])
 	for i in range(1000):
@@ -260,4 +211,32 @@ def test_high_throughput_bidirectional():
 	h.close()
 	success("High Throughput Host <-> Client Passed")
 
-test_high_throughput_bidirectional()
+###################
+### TEST RUNNER ###
+###################
+
+def main(args):
+	global DEBUG, DELAY
+	if args.debug:
+		DEBUG = True
+	if args.sleep:
+		DELAY = args.sleep
+	routines = [test_connection_BOTH, test_async_ordering, test_empty_message, 
+				test_host_messages, test_client_messages, test_bidirectional_messages,
+				test_high_speed_host, test_high_throughput_host, test_high_throughput_client,
+				test_high_throughput_bidirectional]
+	num = args.num or 1
+	for i in range(num):
+		for test in routines:
+			test()
+	print()
+	success("All tests completed successfully")
+
+
+if __name__ == '__main__':
+	parser = argparse.ArgumentParser(description='Automated testing for the socket.engine library')
+	parser.add_argument('-n', '--num', help='The number of times each test should run', type=int)
+	parser.add_argument('-d', '--debug', help='Turns on extra debugging messages', action='store_true')
+	parser.add_argument('-s', '--sleep', help='Sleep timer between actions (default {})'.format(DELAY), type=float)
+	args = parser.parse_args()
+	main(args)
