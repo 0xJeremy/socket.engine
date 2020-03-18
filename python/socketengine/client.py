@@ -17,7 +17,7 @@ from .constants import ADDR, PORT, TIMEOUT, SIZE
 ####################
 
 class client:
-	def __init__(self, addr='127.0.0.1', timeout=TIMEOUT, port=8080, size=SIZE, open=True):
+	def __init__(self, addr=ADDR, timeout=TIMEOUT, port=PORT, size=SIZE, open=True):
 		self.addr = addr
 		self.port = port
 		self.canWrite = True

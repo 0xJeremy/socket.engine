@@ -46,6 +46,7 @@ Luckily friends do ashamed to do suppose. Tried meant mr smile so. Exquisite beh
 ##################
 
 def test_connection_BOTH():
+	start = time.time()
 	h = host(timeout=TIMEOUT)
 	h.start()
 	c = client(timeout=TIMEOUT)
@@ -62,9 +63,10 @@ def test_connection_BOTH():
 	h.close()
 	report("Closed state verified")
 	assert(not h.opened and h.stopped)
-	success("Connection test passed")
+	success("Connection test Passed ({:.5f} sec)".format(time.time()-start))
 
 def test_async_ordering():
+	start = time.time()
 	h = host(timeout=TIMEOUT, open=False)
 	c = client(timeout=TIMEOUT, open=False)
 	assert(not h.opened)
@@ -82,9 +84,10 @@ def test_async_ordering():
 	c.close()
 	assert(c.stopped)
 	report("Client closed")
-	success("Async Ordering test passed")
+	success("Async Ordering test Passed ({:.5f} sec)".format(time.time()-start))
 
 def test_empty_message():
+	start = time.time()
 	h, c = initialize()
 	assert(c.get("Test") is None)
 	assert(c.get("Test2") is None)
@@ -92,9 +95,10 @@ def test_empty_message():
 	assert(h.get_ALL("Test2") == [])
 	c.close()
 	h.close()
-	success("Empty messages test passed")
+	success("Empty messages test Passed ({:.5f} sec)".format(time.time()-start))
 
 def test_host_messages():
+	start = time.time()
 	h, c = initialize()
 	assert(h.get_ALL("Test") == [])
 	assert(h.get_ALL("Test2") == [])
@@ -110,9 +114,10 @@ def test_host_messages():
 	assert(c.get("Test2") is None)
 	c.close()
 	h.close()
-	success("Client -> Host Passed")
+	success("Client -> Host Passed ({:.5f} sec)".format(time.time()-start))
 
 def test_client_messages():
+	start = time.time()
 	h, c = initialize()
 	assert(c.get("Test") is None)
 	assert(c.get("Test2") is None)
@@ -132,9 +137,10 @@ def test_client_messages():
 	assert(h.get_ALL("Test2") == [])
 	h.close()
 	c.close()
-	success("Host -> Client Passed")
+	success("Host -> Client Passed ({:.5f} sec)".format(time.time()-start))
 
 def test_bidirectional_messages():
+	start = time.time()
 	h, c = initialize()
 	assert(c.get("Test") is None)
 	assert(c.get("Test2") is None)
@@ -154,9 +160,10 @@ def test_bidirectional_messages():
 	assert(h.get_ALL("Test2") == ["test of port 2"])
 	h.close()
 	c.close()
-	success("Host <-> Client Passed")
+	success("Host <-> Client Passed ({:.5f} sec)".format(time.time()-start))
 
 def test_high_speed_host():
+	start = time.time()
 	h, c = initialize()
 	c.write("connected", True)
 	s()
@@ -167,9 +174,10 @@ def test_high_speed_host():
 		assert(c.get("Test{}".format(i)) == "test of port {}".format(i))
 	c.close()
 	h.close()
-	success("High Speed Host -> Client Passed")
+	success("High Speed Host -> Client Passed ({:.5f} sec)".format(time.time()-start))
 
 def test_high_throughput_host():
+	start = time.time()
 	h, c = initialize()
 	c.write("connected", True)
 	s()
@@ -180,9 +188,10 @@ def test_high_throughput_host():
 		assert(c.get("Test{}".format(i)) == text)
 	c.close()
 	h.close()
-	success("High Throughput Host -> Client Passed")
+	success("High Throughput Host -> Client Passed ({:.5f} sec)".format(time.time()-start))
 
 def test_high_throughput_client():
+	start = time.time()
 	h, c = initialize()
 	c.write("connected", True)
 	s()
@@ -193,9 +202,10 @@ def test_high_throughput_client():
 		assert(h.get_ALL("Test{}".format(i)) == [text])
 	c.close()
 	h.close()
-	success("High Throughput Client -> Host Passed")
+	success("High Throughput Client -> Host Passed ({:.5f} sec)".format(time.time()-start))
 
 def test_high_throughput_bidirectional():
+	start = time.time()
 	h, c = initialize()
 	c.write("connected", True)
 	s()
@@ -209,35 +219,53 @@ def test_high_throughput_bidirectional():
 		assert(c.get("Test{}".format(i)) == text)
 	c.close()
 	h.close()
-	success("High Throughput Host <-> Client Passed")
+	success("High Throughput Host <-> Client Passed ({:.5f} sec)".format(time.time()-start))
 
-def stress_test_v1():
-	STRESS = 5
+def stress_test(stress=5, messages=1000):
 	h = host(timeout=TIMEOUT)
 	h.start()
 	clients = []
-	for i in range(STRESS):
+	for i in range(stress):
 		c = client(timeout=TIMEOUT).start()
 		c.write("connected", True)
 		clients.append(c)
 	report("All sockets connected")
 	s()
-	for i in range(1000):
+	for i in range(messages):
 		for c in clients:
 			c.write("Test{}".format(i), text)
 		h.write_ALL("Test{}".format(i), text)
 	report("All data written")
 	s()
-	for i in range(1000):
-		assert(h.get_ALL("Test{}".format(i)) == [text]*STRESS)
-	for i in range(1000):
+	for i in range(messages):
+		assert(h.get_ALL("Test{}".format(i)) == [text]*stress)
+	for i in range(messages):
 		for c in clients:
 			assert(c.get("Test{}".format(i)) == text)
 	report("All data asserted")
 	for c in clients:
 		c.close()
 	h.close()
-	success("Stress Test (v1) Passed")		
+
+def stress_test_v1():
+	start = time.time()
+	stress_test()
+	success("Stress Test (v1) Passed ({:.5f} sec)".format(time.time()-start))
+
+def stress_test_v2():
+	start = time.time()
+	stress_test(stress=10)
+	success("Stress Test (v2) Passed ({:.5f} sec)".format(time.time()-start))
+
+def stress_test_v3():
+	start = time.time()
+	stress_test(stress=20)
+	success("Stress Test (v3) Passed ({:.5f} sec)".format(time.time()-start))
+
+def stress_test_v4():
+	start = time.time()
+	stress_test(stress=10, messages=5000)
+	success("Stress Test (v4) Passed ({:.5f} sec)".format(time.time()-start))
 
 ###################
 ### TEST RUNNER ###
@@ -252,13 +280,13 @@ def main(args):
 	routines = [test_connection_BOTH, test_async_ordering, test_empty_message, 
 				test_host_messages, test_client_messages, test_bidirectional_messages,
 				test_high_speed_host, test_high_throughput_host, test_high_throughput_client,
-				test_high_throughput_bidirectional, stress_test_v1]
+				test_high_throughput_bidirectional, stress_test_v1, stress_test_v2,
+				stress_test_v3, stress_test_v4]
 	num = args.num or 1
 	for i in range(num):
 		for test in routines:
 			test()
-	print()
-	success("All tests completed successfully")
+	success("\nAll tests completed successfully")
 
 
 if __name__ == '__main__':
