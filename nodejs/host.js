@@ -113,7 +113,7 @@ inherits(_connection, EventEmitter);
 /// HOST CLASS ///
 //////////////////
 
-function host(addr=ADDR, port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT, open=true) {
+function host(addr=ADDR, port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
 	EventEmitter.call(this);
 	this.net = require('net');
 

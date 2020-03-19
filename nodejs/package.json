@@ -1,10 +1,10 @@
 {
   "name": "socket.engine",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A universal communication engine",
   "main": "socketengine.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node tests/test.js"
   },
   "repository": {
     "type": "git",
