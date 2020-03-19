@@ -47,7 +47,6 @@ function _connection(socket, address, timeout, maxSize) {
 				try {
 					var msg = JSON.parse(data[i]);
 					this.channels[msg['type']] = msg['data'];
-
 					if(msg['type'] == IMAGE) {
 						if(base64.test(msg['data'])) {
 							this.emit(msg['type'], msg['data']);
@@ -132,6 +131,7 @@ function host(addr=ADDR, port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT, open=true)
 		'address': this.addr
 	};
 	this.listener = null;
+	this.opened = false;
 
 	//////////////
 	/// SERVER ///
@@ -167,6 +167,7 @@ function host(addr=ADDR, port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT, open=true)
 
 	this.start = function() {
 		this.server.listen(this.socketpath.port, this.socketpath.address);
+		this.opened = true;
 		return this;
 	}
 

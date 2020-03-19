@@ -25,20 +25,28 @@ function client(addr=ADDR, port=PORT) {
 	EventEmitter.call(this);
 	this.net = require('net');
 
-	this.address = address;
+	this.addr = addr;
 	this.port = port;
 	this.socket = new this.net.Socket();
 	this.msgBuffer = '';
 	this.channels = {};
+	this.opened = false;
 
 	//////////////////////
 	/// SOCKET ACTIONS ///
 	//////////////////////
 
 	this.start = function() {
-		this.socket.connect(this.port, this.addr, () => {
-			this.emit('connected');
-		})
+		while(true) {
+			try {
+				this.socket.connect(this.port, this.addr, () => {
+					this.emit('connected');
+				});
+				break;
+			}
+			catch(err) { }
+		}
+		
 
 		this.socket.on('data', (bytes) => {
 			this.msgBuffer += bytes.toString();
@@ -69,6 +77,8 @@ function client(addr=ADDR, port=PORT) {
 		this.socket.on('error', (err) => {
 			this.emit('error', err);
 		});
+		this.opened = true;
+		return this
 	}
 
 	///////////////
