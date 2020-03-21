@@ -45,12 +45,12 @@ function client(addr=ADDR, port=PORT) {
 				break;
 			} catch(err) { }
 		}
-		
 
 		this.socket.on('data', (bytes) => {
 			this.msgBuffer += bytes.toString();
 			if(this.msgBuffer != '' && this.msgBuffer != '\n') {
 				var data = this.msgBuffer.split('\n');
+				var errors = false;
 				for(var i = 0; i < data.length; i++) {
 					try {
 						var msg = JSON.parse(data[i]);
@@ -64,7 +64,10 @@ function client(addr=ADDR, port=PORT) {
 							this.emit(msg['type'], msg['data']);
 						}
 						this.emit('data', msg);
-					} catch(err) { };
+					} catch(err) {errors = true};
+				}
+				if(errors == false) {
+					this.msgBuffer = '';
 				}
 			}
 		});
