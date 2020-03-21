@@ -45,6 +45,9 @@ function _connection(socket, address, timeout, maxSize) {
 			var data = this.msgBuffer.split('\n');
 			for(var i = 0; i < data.length; i++) {
 				try {
+					if(data[i] == '') {
+						continue;
+					}
 					var msg = JSON.parse(data[i]);
 					this.channels[msg['type']] = msg['data'];
 					if(msg['type'] == IMAGE) {
@@ -56,7 +59,7 @@ function _connection(socket, address, timeout, maxSize) {
 					}
 					this._reset();
 					this.emit('data', msg);
-				} catch(err) { };
+				} catch(err) {};
 			}
 		}
 	});
@@ -65,13 +68,14 @@ function _connection(socket, address, timeout, maxSize) {
 		});
 
 	this.socket.on('error', (err) => {
-		this.emit('error', err);
+		this.emit('warning', err);
 	});
 
 	this._reset = function() {
-		this.msgBuffer = '';
-		this.lastData = new Date().getTime();
-		this.write(ACK, 'True');
+		// this.msgBuffer = '';
+		// this.lastData = new Date().getTime();
+		// this.write(ACK, 'True');
+		var op = null;
 	}
 
 	///////////////
@@ -87,7 +91,7 @@ function _connection(socket, address, timeout, maxSize) {
 			'type': dataType,
 			'data': data
 		};
-		this.socket.write(JSON.stringify(msg));
+		this.socket.write(JSON.stringify(msg) + NEWLINE);
 	}
 
 	this.close = function() {
@@ -154,7 +158,7 @@ function host(addr=ADDR, port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
 			this.emit(msg['type'], this.get_ALL(msg['type']));
 		});
 		connection.on('error', (err) => {
-			this.emit('error', err);
+			this.emit('warning', err);
 		});
 		connection.on('end', () => {
 			this.emit('end');

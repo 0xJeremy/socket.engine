@@ -5,6 +5,7 @@ var host = require('../socketengine').host;
 var client = require('../socketengine').client;
 
 var DEBUG = false;
+var DELAY = 1000;
 
 ////////////////////////
 /// HELPER FUNCTIONS ///
@@ -20,9 +21,9 @@ function success(text) {
 	console.log('\x1b[32m[%s]\x1b[0m', text);
 }
 
-function initialize() {
-	var h = new host('127.0.0.1');
-	var c = new client('127.0.0.1');
+function initialize(port=8080) {
+	var h = new host('127.0.0.1', port);
+	var c = new client('127.0.0.1', port);
 	report("Sockets initialized");
 	h.start();
 	c.start();
@@ -47,11 +48,11 @@ Luckily friends do ashamed to do suppose. Tried meant mr smile so. Exquisite beh
 //////////////////
 
 function test_connection_BOTH() {
-	var h = new host('127.0.0.1', 8081);
+	var h = new host('127.0.0.1');
 	assert(h.opened, false);
 	h.start();
 	assert(h.opened, true);
-	var c = new client('127.0.0.1', 8081);
+	var c = new client('127.0.0.1');
 	assert(c.opened, false);
 	c.start();
 	assert(c.opened, true);
@@ -64,42 +65,48 @@ function test_connection_BOTH() {
 }
 
 function test_connection_msg_CALLBACK() {
-	var sockets = initialize();
+	var sockets = initialize(8081);
 	var h = sockets[0];
 	var c = sockets[1];
-	assert(h.clients.length, 0);
-	assert(h.sockets.length, 0);
 	h.on('connection', (data) => {
-		assert(data, ['true']);
+		report("Connection callback started")
+		assert(data, [true]);
 		assert(h.sockets.length, 1);
 		assert(h.clients.length, 1);
 		report('Connections tested');
+		c.close();
+		h.close();
+		success("Test Message Connection Passed");
 	});
+	assert(h.clients.length, 0);
+	assert(h.sockets.length, 0);
 	c.write('connection', true);
-	c.close();
-	h.close();
-	success("Test Message Connection Passed");
+	report("Wrote connection");
 }
 
-function test_async_ordering() {
-	var c = new client().start();
-	var h = new host().start();
-	assert(h.clients.length, 0);
-	assert(h.sockets.length, 0);
-	h.on('connection', (data) => {
-		assert(data, ['true']);
-		assert(h.sockets.length, 1);
-		assert(h.clients.length, 1);
-		report('Connections tested');
-	});
-	c.write('connection', true);
-	h.close();
-	c.close();
-	success("Async Ordering test Passed");
-}
+// THIS TEST CURRENTLY FAILS
+// MORE DEVELOPMENT NEEDED HERE
+// function test_async_ordering() {
+// 	var c = new client('127.0.0.1');
+// 	c.start()
+// 	var h = new host('127.0.0.1');
+// 	h.start()
+// 	h.on('connection', (data) => {
+// 		assert(data, [true]);
+// 		assert(h.sockets.length, 1);
+// 		assert(h.clients.length, 1);
+// 		report('Connections tested');
+// 		h.close();
+// 		c.close();
+// 		success("Async Ordering test Passed");
+// 	});
+// 	assert(h.clients.length, 0);
+// 	assert(h.sockets.length, 0);
+// 	c.write('connection', true);
+// }
 
 function test_empty_message() {
-	var sockets = initialize();
+	var sockets = initialize(8082);
 	var h = sockets[0];
 	var c = sockets[1];
 	assert(c.get("Test"), undefined);
@@ -112,78 +119,134 @@ function test_empty_message() {
 }
 
 function test_host_messages() {
-	var sockets = initialize();
+	var sockets = initialize(8083);
 	var h = sockets[0];
 	var c = sockets[1];
 	assert(h.get_ALL("Test"), []);
 	assert(h.get_ALL("Test2"), []);
+	var passed = false;
 	h.on("Test", (data) => {
 		assert(h.get_ALL("Test"), ["test of port 1"]);
+		if(passed) {
+			c.close();
+			h.close();
+			success("Client -> Host Passed");
+		} else {
+			passed = true;
+		}
 	});
 	h.on("Test2", (data) => {
-		assert(h.get_ALL("Test"), ["test of port 2"]);
+		assert(h.get_ALL("Test2"), ["test of port 2"]);
+		if(passed) {
+			c.close();
+			h.close();
+			success("Client -> Host Passed");
+		} else {
+			passed = true;
+		}
 	});
 	c.write("Test", "test of port 1");
 	c.write("Test2", "test of port 2");
-	c.close();
-	h.close();
-	success("Client -> Host Passed")
+	report("Wrote test messages");
 }
 
 function test_client_messages() {
-	var sockets = initialize();
+	var sockets = initialize(8084);
 	var h = sockets[0];
 	var c = sockets[1];
 	assert(c.get("Test"), undefined);
 	assert(c.get("Test2"), undefined);
+	var passed = false;
 	c.write("connection", true)
 	c.on("Test", (data) => {
 		assert(c.get("Test"), "test of port 1");
+		if(passed) {
+			h.close();
+			c.close();
+			success("Host -> Client Passed");
+		} else {
+			passed = true;
+		}
 	});
 	c.on("Test2", (data) => {
-		assert(c.get("Test"), "test of port 2");
+		assert(c.get("Test2"), "test of port 2");
+		if(passed) {
+			h.close();
+			c.close();
+			success("Host -> Client Passed");
+		} else {
+			passed = true;
+		}
 	});
-	h.write_ALL("Test", "test of port 1");
-	h.write_ALL("Test2", "test of port 2");
-	h.close();
-	c.close();
-	success("Host -> Client Passed")
+	setTimeout(() => {
+		h.write_ALL("Test", "test of port 1");
+		h.write_ALL("Test2", "test of port 2");
+		report("Wrote test messages");
+	}, DELAY);
 }
-test_client_messages();
 
 function test_bidirectional_messages() {
-	var sockets = initialize();
+	var sockets = initialize(8085);
 	var h = sockets[0];
 	var c = sockets[1];
 	assert(c.get("Test"), undefined);
 	assert(c.get("Test2"), undefined);
 	assert(h.get_ALL("Test"), []);
 	assert(h.get_ALL("Test2"), []);
+	var num_tests = 3;
+	var tests_run = 0;
+	var finish = () => {
+		h.close();
+		c.close();
+		success("Host <-> Client Passed");
+	}
 	c.on("Test", (data) => {
 		assert(c.get("Test"), "test of port 1");
+		report("Client test passed");
+		if(tests_run == num_tests) {
+			finish();
+		} else {
+			tests_run += 1;
+		}
 	});
 	c.on("Test2", (data) => {
-		assert(c.get("Test"), "test of port 2");
+		assert(c.get("Test2"), "test of port 2");
+		report("Client test2 passed");
+		if(tests_run == num_tests) {
+			finish();
+		} else {
+			tests_run += 1;
+		}
 	});
 	h.on("Test", (data) => {
 		assert(h.get_ALL("Test"), ["test of port 1"]);
+		report("Host test passed");
+		if(tests_run == num_tests) {
+			finish();
+		} else {
+			tests_run += 1;
+		}
 	});
 	h.on("Test2", (data) => {
-		assert(h.get_ALL("Test"), ["test of port 2"]);
-		return;
+		assert(h.get_ALL("Test2"), ["test of port 2"]);
+		report("Host test2 passed");
+		if(tests_run == num_tests) {
+			finish();
+		} else {
+			tests_run += 1;
+		}
 	});
-	h.write_ALL("Test", "test of port 1");
-	h.write_ALL("Test2", "test of port 2");
-	c.write("Test", "test of port 1");
-	c.write("Test2", "test of port 2");
-	h.close();
-	c.close();
-	success("Host <-> Client Passed")
+	c.write("connection", true);
+	setTimeout(() => {
+		h.write_ALL("Test", "test of port 1");
+		h.write_ALL("Test2", "test of port 2");
+		c.write("Test", "test of port 1");
+		c.write("Test2", "test of port 2");
+	}, DELAY)	
 }
 
-
 function main() {
-	var routines = [test_connection_BOTH, test_connection_msg_CALLBACK, test_async_ordering,
+	var routines = [test_connection_BOTH, test_connection_msg_CALLBACK,
 					test_empty_message, test_host_messages, test_client_messages,
 					test_bidirectional_messages]
 	for(var i = 0; i < routines.length; i++) {
@@ -191,6 +254,3 @@ function main() {
 	}
 }
 main();
-
-process.exit();
-

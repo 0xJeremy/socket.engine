@@ -1,7 +1,8 @@
+#!/usr/bin/env python3
+
 from socketengine import client
 from socketengine import host
 import time
-from threading import Thread
 import argparse
 
 TIMEOUT = 0.5

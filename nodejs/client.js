@@ -43,8 +43,7 @@ function client(addr=ADDR, port=PORT) {
 					this.emit('connected');
 				});
 				break;
-			}
-			catch(err) { }
+			} catch(err) { }
 		}
 		
 
@@ -75,7 +74,7 @@ function client(addr=ADDR, port=PORT) {
 		});
 
 		this.socket.on('error', (err) => {
-			this.emit('error', err);
+			this.emit('warning', err);
 		});
 		this.opened = true;
 		return this
@@ -94,7 +93,7 @@ function client(addr=ADDR, port=PORT) {
 			'type': dataType,
 			'data': data
 		};
-		this.socket.write(JSON.stringify(msg));
+		this.socket.write(JSON.stringify(msg) + NEWLINE);
 	}
 
 	this.close = function() {
