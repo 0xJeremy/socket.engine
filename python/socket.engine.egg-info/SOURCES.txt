@@ -11,3 +11,4 @@ socketengine/constants.py
 socketengine/host.py
 tests/__init__.py
 tests/test.py
+tests/tmp.py

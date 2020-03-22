@@ -10,7 +10,7 @@ from .common import encodeImg
 #################
 
 from .constants import ACK, NEWLINE, IMG_MSG_S, IMG_MSG_E
-from .constants import ADDR, PORT, TIMEOUT, SIZE
+from .constants import ADDR, PORT, TIMEOUT, SIZE, OPEN
 
 ########################
 ### CONNECTION CLASS ###
@@ -71,9 +71,8 @@ class _connection:
 			self.write(channel, data)
 
 	def write(self, channel, data):
-		with self.lock:
-			msg = {'type': channel, 'data': data}
-			self.socket.sendall(dictToJson(msg).encode() + NEWLINE)
+		msg = {'type': channel, 'data': data}
+		self.socket.sendall(dictToJson(msg).encode() + NEWLINE)
 
 	def writeImgLock(self, data):
 		with self.lock:
@@ -93,7 +92,7 @@ class _connection:
 ##################
 
 class host:
-	def __init__(self, addr=ADDR, port=PORT, timeout=TIMEOUT, size=SIZE, open=True):
+	def __init__(self, addr=ADDR, port=PORT, timeout=TIMEOUT, size=SIZE, open=OPEN):
 		self.addr = addr
 		self.port = port
 		self.timeout = timeout
@@ -104,7 +103,6 @@ class host:
 		self.opened = False
 		if open:
 			self.open()
-		return self
 
 	def set_timeout(self, time):
 		self.timeout = time

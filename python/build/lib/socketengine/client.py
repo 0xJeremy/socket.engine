@@ -10,14 +10,14 @@ from .common import encodeImg
 #################
 
 from .constants import ACK, NEWLINE, IMG_MSG_S, IMG_MSG_E
-from .constants import ADDR, PORT, TIMEOUT, SIZE
+from .constants import ADDR, PORT, TIMEOUT, SIZE, OPEN
 
 ####################
 ### CLIENT CLASS ###
 ####################
 
 class client:
-	def __init__(self, addr=ADDR, timeout=TIMEOUT, port=PORT, size=SIZE, open=True):
+	def __init__(self, addr=ADDR, timeout=TIMEOUT, port=PORT, size=SIZE, open=OPEN):
 		self.addr = addr
 		self.port = port
 		self.canWrite = True
@@ -29,7 +29,6 @@ class client:
 		self.stopped = False
 		if open:
 			self.open()
-		return self
 
 	def set_timeout(self, time):
 		self.timeout = time
@@ -94,9 +93,8 @@ class client:
 		return self
 
 	def write(self, channel, data):
-		with self.lock:
-			msg = {'type': channel, 'data': data}
-			self.socket.sendall(dictToJson(msg).encode() + NEWLINE)
+		msg = {'type': channel, 'data': data}
+		self.socket.sendall(dictToJson(msg).encode() + NEWLINE)
 		return self
 
 	def writeImgLock(self, data):
