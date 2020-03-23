@@ -2,7 +2,6 @@
 ### MESSAGE CONSTANTS ###
 #########################
 
-ACK       = 'ACK'
 NEWLINE   = '\n'.encode()
 IMG_MSG_S = '{"type": "image", "data": "'.encode()
 IMG_MSG_E = '"}'.encode()
@@ -16,3 +15,13 @@ PORT    = 8080
 TIMEOUT = 2
 SIZE    = 256
 OPEN    = True
+STATUS  = '__status'
+
+####################
+### STATUS TYPES ###
+####################
+
+CLOSING = '__closing'
+ACK     = '__ack'
+
+

@@ -9,7 +9,7 @@ var ip = require('ip');
 /////////////////
 
 var STOP = 'STOP';
-var ACK = 'ACK';
+var ACK = '__ack';
 var IMAGE = 'image';
 var NEWLINE = '\n';
 
