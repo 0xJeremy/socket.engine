@@ -10,8 +10,11 @@ from .common import encodeImg, generateSocket
 #################
 
 from .constants import ACK, NEWLINE, IMG_MSG_S, IMG_MSG_E
-from .constants import ADDR, PORT, TIMEOUT, SIZE
-from .constants import STATUS, CLOSING
+from .constants import PORT, TIMEOUT, SIZE
+from .constants import STATUS, CLOSING, NAME_CONN
+from .constants import MAX_RETRIES
+
+###############################################################
 
 ########################
 ### CONNECTION CLASS ###
@@ -21,7 +24,8 @@ class connection:
 	TYPE_LOCAL = 1
 	TYPE_REMOTE = 2
 
-	def __init__(self, timeout=TIMEOUT, size=SIZE):
+	def __init__(self, name, timeout=TIMEOUT, size=SIZE):
+		self.name = name
 		self.socket = None
 		self.addr, self.port = None, None
 		self.canWrite = True
@@ -33,19 +37,19 @@ class connection:
 		self.type = None
 		self.lock = Lock()
 
-	def __receive(self, socket, addr, port):
+	def receive(self, socket, addr, port):
 		self.socket = socket
 		self.addr = addr
 		self.port = port
 		self.socket.settimeout(self.timeout)
 		self.type = connection.TYPE_REMOTE
+		self.opened = True
 		self.__start()
 
 	def __start(self):
 		if self.socket is None:
 			raise RuntimeError("Connection started without socket")
 			return
-		self.opened = True
 		Thread(target=self.__run, args=()).start()
 		return self
 
@@ -64,25 +68,28 @@ class connection:
 				self.close()
 
 			if tmp != '':
-				data = tmp.split(NEWLINE)
+				data = tmp.split('\n')
 				for i in range(len(data)):
 					try:
 						msg = jsonToDict(data[i])
-					except: JSONDecodeError:
+					except JSONDecodeError:
 						continue
 
-					if msg['type'] == STATUS:
-						self.__cascade(msg['data'])
+					self.__cascade(msg['type'], msg['data'])
 					self.channels[msg['type']] = msg['data']
 					data[i] = ''
 
 				tmp = ''.join(data)
 
-	def __cascade(self, mdata):
-		if mdata == ACK:
+	def __cascade(self, mtype, mdata):
+		if mtype == ACK:
 			self.canWrite = True
-		if mdata == CLOSING:
-			self.__close()
+		if mtype == STATUS:
+			if mdata == CLOSING:
+				self.__close()
+		if mtype == NAME_CONN:
+			print("got name_conn with", mdata)
+			self.name = mdata
 
 	def __close(self):
 		self.opened = False
@@ -92,7 +99,9 @@ class connection:
 	### INTERFACE ###
 	#################
 
-	def connect(self, addr, port):
+	def connect(self, name, addr, port):
+		print("connect got", name)
+		self.name = name
 		self.addr = addr
 		self.port = port
 		while True:
@@ -108,6 +117,9 @@ class connection:
 			except socket.timeout:
 				continue
 		self.type = connection.TYPE_LOCAL
+		self.opened = True
+		self.write(NAME_CONN, self.name)
+		print("wrote conn with", self.name)
 		self.__start()
 
 	def get(self, channel):
@@ -120,8 +132,8 @@ class connection:
 		if self.opened:
 			with self.lock:
 				msg = {
-					'type': channel.replace(NEWLINE, ''),
-					'data': data.replace(NEWLINE, '')
+					'type': channel.replace('\n', ''),
+					'data': data.replace('\n', '')
 				}
 				self.socket.sendall(dictToJson(msg).encode() + NEWLINE)
 
@@ -135,16 +147,17 @@ class connection:
 		self.write(STATUS, CLOSING)
 		self.__close()
 
-	
+###############################################################
 
 #################
 ### HUB CLASS ###
 #################
 
 class hub:
-	def __init__(self, name=DEFAULT_NAME, port=PORT, timeout=TIMEOUT, size=SIZE):
-		self.name = name
-		self.port = port
+	def __init__(self, port=None, timeout=TIMEOUT, size=SIZE):
+		self.socket = None
+		self.userDefinedPort = (port is not None)
+		self.port = port or PORT
 		self.timeout = timeout
 		self.size = size
 		self.connections = []
@@ -162,13 +175,15 @@ class hub:
 				self.socket.listen()
 				break
 			except OSError as e:
-				raise RuntimeError("Socket address in use: {}".format(e))
-				return
+				if self.userDefinedPort or self.port > (PORT+MAX_RETRIES):
+					raise RuntimeError("Socket address in use: {}".format(e))
+					return
+				self.port += 1
 			except socket.timeout:
 				continue
 
 	def __start(self):
-		if not self.opened:
+		if self.socket is None:
 			raise RuntimeError("Hub started without host socket")
 		self.opened = True
 		Thread(target=self.__run, args=()).start()
@@ -188,15 +203,24 @@ class hub:
 				if addr not in self.address_connections:
 					self.address_connections.append(addr)
 					addr, port = addr
-					c = connection(self.timeout, self.size)
-					c.__receive(s, addr, port)
+					c = connection(None, self.timeout, self.size)
+					c.receive(s, addr, port)
 					self.connections.append(c)
 			except socket.timeout:
 				continue
 
+	def connect(self, name, addr, port):
+		c = connection(self.timeout, self.size)
+		c.connect(name, addr, port)
+		self.connections.append(c)
+		return self
+
 	def close(self):
 		self.opened = False
 		self.stopped = True
+
+	def getConnections(self):
+		return self.connections
 
 	##########################
 	### INTERFACE, GETTERS ###
@@ -211,16 +235,31 @@ class hub:
 		return data
 
 	def get_by_name(self, name, channel):
-		return None
+		data = []
+		for c in self.connections:
+			if c.name == name:
+				tmp = c.get(channel)
+				if tmp is not None:
+					data.append(tmp)
+		return data
 
 	def get_local(self, channel):
-		return None
+		data = []
+		for c in self.connections:
+			if c.type == connection.TYPE_LOCAL:
+				tmp = c.get(channel)
+				if tmp is not None:
+					data.append(tmp)
+		return data
 
 	def get_remote(self, channel):
-		return None
-
-	def get_connections(self):
-		return self.connections
+		data = []
+		for c in self.connections:
+			if c.type == connection.TYPE_REMOTE:
+				tmp = c.get(channel)
+				if tmp is not None:
+					data.append(tmp)
+		return data
 
 	##########################
 	### INTERFACE, WRITERS ###
@@ -232,15 +271,42 @@ class hub:
 		return self
 
 	def write_to_name(self, name, channel, data):
-		return None
+		for c in self.connections:
+			if c.name == name:
+				c.write(channel, data)
+		return self
 
 	def write_to_local(self, channel, data):
-		return None
+		for c in self.connections:
+			if c.type == connection.TYPE_LOCAL:
+				c.write(channel, data)
+		return self
 
 	def write_to_remote(self, channel, data):
-		return None
+		for c in self.connections:
+			if c.type == connection.TYPE_REMOTE:
+				c.write(channel, data)
+		return self
 
-	def writeImg_ALL(self, data):
+	def write_image_all(self, data):
 		for c in self.connections:
 			c.writeImg(data)
+		return self
+
+	def write_image_to_name(self, name, data):
+		for c in self.connections:
+			if c.name == name:
+				c.writeImg(data)
+		return self
+
+	def write_image_to_local(self, data):
+		for c in self.connections:
+			if c.type == connection.TYPE_LOCAL:
+				c.writeImg(data)
+		return self
+
+	def write_image_to_remote(self, data):
+		for c in self.connections:
+			if c.type == connection.TYPE_REMOTE:
+				c.writeImg(data)
 		return self
