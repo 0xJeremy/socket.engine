@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
 
+import sys
+import os
+
+PACKAGE_PARENT = '..'
+SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
+sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
+
 from socketengine import client
 from socketengine import host
 import time
@@ -60,7 +67,6 @@ def test_connection_BOTH():
 	report("Open state verified")
 	c.close()
 	assert(not c.opened and c.stopped)
-	assert(c.stopped)
 	h.close()
 	report("Closed state verified")
 	assert(not h.opened and h.stopped)

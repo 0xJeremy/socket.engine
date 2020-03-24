@@ -88,7 +88,6 @@ class connection:
 			if mdata == CLOSING:
 				self.__close()
 		if mtype == NAME_CONN:
-			print("got name_conn with", mdata)
 			self.name = mdata
 
 	def __close(self):
@@ -100,7 +99,6 @@ class connection:
 	#################
 
 	def connect(self, name, addr, port):
-		print("connect got", name)
 		self.name = name
 		self.addr = addr
 		self.port = port
@@ -119,7 +117,6 @@ class connection:
 		self.type = connection.TYPE_LOCAL
 		self.opened = True
 		self.write(NAME_CONN, self.name)
-		print("wrote conn with", self.name)
 		self.__start()
 
 	def get(self, channel):
@@ -144,7 +141,10 @@ class connection:
 				self.socket.sendall(IMG_MSG_S + encodeImg(data) + IMG_MSG_E + NEWLINE)
 
 	def close(self):
-		self.write(STATUS, CLOSING)
+		try:
+			self.write(STATUS, CLOSING)
+		except OSError:
+			pass
 		self.__close()
 
 ###############################################################
@@ -278,13 +278,13 @@ class hub:
 
 	def write_to_local(self, channel, data):
 		for c in self.connections:
-			if c.type == connection.TYPE_LOCAL:
+			if c.type == connection.TYPE_REMOTE:
 				c.write(channel, data)
 		return self
 
 	def write_to_remote(self, channel, data):
 		for c in self.connections:
-			if c.type == connection.TYPE_REMOTE:
+			if c.type == connection.TYPE_LOCAL:
 				c.write(channel, data)
 		return self
 
@@ -301,12 +301,12 @@ class hub:
 
 	def write_image_to_local(self, data):
 		for c in self.connections:
-			if c.type == connection.TYPE_LOCAL:
+			if c.type == connection.TYPE_REMOTE:
 				c.writeImg(data)
 		return self
 
 	def write_image_to_remote(self, data):
 		for c in self.connections:
-			if c.type == connection.TYPE_REMOTE:
+			if c.type == connection.TYPE_LOCAL:
 				c.writeImg(data)
 		return self
