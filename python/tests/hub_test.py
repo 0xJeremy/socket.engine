@@ -116,6 +116,8 @@ def test_empty_messages():
 	assert(h2.get_all("Test") == [])
 	assert(h1.get_all("Test2") == [])
 	assert(h2.get_all("Test2") == [])
+	h1.close()
+	h2.close()
 	success("Empty messages Test Passed ({:.5f} sec)".format(time.time()-start))
 
 def test_oneway_messages():
@@ -288,19 +290,24 @@ def multi_hub_stress_test(stress=5, messages=1000):
 	for i in range(stress):
 		h = hub(timeout=TIMEOUT)
 		hubs.append(h)
+	report("Hubs created")
 	for h1 in hubs:
 		for h2 in hubs:
 			h2.connect("Test", '127.0.0.1', h1.port)
+	report("Hubs linked")
 	s()
 	for h in hubs:
 		assert(len(h.connections) == 2*stress)
+	report("Hub connections verified")
 	for h in hubs:
 		for i in range(messages):
 			h.write_all("Test{}".format(i), text)
+	report("Writing finished")
 	s()
 	for h in hubs:
 		for i in range(messages):
 			assert(h.get_all("Test{}".format(i)) == [text]*2*stress)
+	report("Hub messages verified")
 	for h in hubs:
 		h.close()
 
@@ -318,6 +325,13 @@ def multi_host_stress_test_v3():
 	start = time.time()
 	multi_hub_stress_test(stress=10, messages=5000)
 	success("Multi-Host Stress Test (v3) Passed ({:.5f} sec)".format(time.time()-start))
+
+# This test read/wrote 4.412gb of data in 818.95143 seconds.
+# It isn't worth running usually.
+# def multi_host_stress_test_v4():
+# 	start = time.time()
+# 	multi_hub_stress_test(stress=20, messages=5000)
+# 	success("Multi-Host Stress Test (v4) Passed ({:.5f} sec)".format(time.time()-start))
 
 
 ###################

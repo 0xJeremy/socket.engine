@@ -3,13 +3,14 @@ from threading import Thread, Lock
 from json import dumps as dictToJson
 from json import loads as jsonToDict
 from json.decoder import JSONDecodeError
-from .common import encodeImg, generateSocket
+from .common import encodeImg, decodeImg, generateSocket
 
 #################
 ### CONSTANTS ###
 #################
 
 from .constants import ACK, NEWLINE, IMG_MSG_S, IMG_MSG_E
+from .constants import IMAGE, TYPE, DATA
 from .constants import PORT, TIMEOUT, SIZE
 from .constants import STATUS, CLOSING, NAME_CONN
 from .constants import MAX_RETRIES
@@ -75,8 +76,11 @@ class connection:
 					except JSONDecodeError:
 						continue
 
-					self.__cascade(msg['type'], msg['data'])
-					self.channels[msg['type']] = msg['data']
+					self.__cascade(msg[TYPE], msg[DATA])
+					if msg[TYPE] == IMAGE:
+						self.channels[IMAGE] = decodeImg(msg[DATA])
+					else:
+						self.channels[msg[TYPE]] = msg[DATA]
 					data[i] = ''
 
 				tmp = ''.join(data)
@@ -89,6 +93,8 @@ class connection:
 				self.__close()
 		if mtype == NAME_CONN:
 			self.name = mdata
+		if mtype == IMAGE:
+			self.write(ACK, ACK)
 
 	def __close(self):
 		self.opened = False
@@ -107,13 +113,15 @@ class connection:
 				self.socket = generateSocket(self.timeout)
 				self.socket.connect((self.addr, self.port))
 				break
+			except socket.timeout:
+				continue
+			except socket.gaierror:
+				continue
 			except OSError as e:
 				if type(e) == ConnectionRefusedError:
 					continue
 				raise RuntimeError("Socket address in use: {}".format(e))
 				return
-			except socket.timeout:
-				continue
 		self.type = connection.TYPE_LOCAL
 		self.opened = True
 		self.write(NAME_CONN, self.name)
@@ -125,16 +133,21 @@ class connection:
 				return self.channels[channel]
 			return None
 
+	def getImg(self):
+		if IMAGE in self.channels.keys():
+			return self.channels[IMAGE]
+		return None
+
 	def write(self, channel, data):
 		if self.opened:
 			with self.lock:
 				msg = {
-					'type': channel.replace('\n', ''),
-					'data': data.replace('\n', '')
+					TYPE: channel.replace('\n', ''),
+					DATA: data.replace('\n', '')
 				}
 				self.socket.sendall(dictToJson(msg).encode() + NEWLINE)
 
-	def writeImg(self, image):
+	def writeImg(self, data):
 		if self.canWrite and self.opened:
 			with self.lock:
 				self.canWrite = False

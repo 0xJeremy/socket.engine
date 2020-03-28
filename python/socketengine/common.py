@@ -1,9 +1,13 @@
 import cv2
 import socket
+import base64
+import numpy as np
 
 def encodeImg(img):
-	success, encoded_img = cv2.imencode('.png', img)
-	return base64.b64encode(encoded_img)
+	return base64.b64encode(cv2.imencode('.png', img)[1])
+
+def decodeImg(img):
+	return cv2.imdecode(np.fromstring(base64.b64decode(img), dtype=np.uint8), cv2.IMREAD_ANYCOLOR)
 
 def generateSocket(timeout):
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
