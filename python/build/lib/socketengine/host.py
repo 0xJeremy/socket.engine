@@ -3,7 +3,7 @@ from threading import Thread, Lock
 from json import dumps as dictToJson
 from json import loads as jsonToDict
 from json.decoder import JSONDecodeError
-from .common import encodeImg
+from .common import encodeImg, generateSocket
 
 #################
 ### CONSTANTS ###
@@ -110,9 +110,7 @@ class host:
 	def open(self):
 		while True:
 			try:
-				self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-				self.socket.settimeout(self.timeout)
-				self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+				self.socket = generateSocket(self.timeout)
 				self.socket.bind(('', self.port))
 				self.socket.listen()
 				break
