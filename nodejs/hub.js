@@ -2,32 +2,28 @@
 
 var EventEmitter = require('events').EventEmitter;
 var inherits = require('util').inherits;
-var ip = require('ip');
+var { decomeImg } = require('./common');
 
 /////////////////
 /// CONSTANTS ///
 /////////////////
 
-var STOP = 'STOP';
-var ACK = '__ack';
-var IMAGE = 'image';
-var NEWLINE = '\n';
-var base64 = new RegExp('^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$');
-var FAMILY = 'IPv4';
-
-var ADDR = ip.address();
-var PORT = 8080;
-var MAXSIZE = 1500000;
-var TIMEOUT = 0;
+const { ACK, NEWLINE } = require('./constants');
+const { IMAGE, TYPE, DATA, FAMILY } = require('./constants');
+const { PORT, TIMEOUT, MAXSIZE } = require('./constants');
+const { STATUS, CLOSING, NAME_CONN } = require('./constants');
+const { MAX_RETRIES } = require('./constants');
 
 var TYPE_LOCAL = 1;
 var TYPE_REMOTE = 2;
+
+///////////////////////////////////////////////////////////////
 
 ////////////////////////
 /// CONNECTION CLASS ///
 ////////////////////////
 
-function _connection(socket, address, timeout, maxSize) {
+function _connection(name, timeout=TIMEOUT, maxSize=MAXSIZE) {
 	EventEmitter.call(this);
 	this.name = name;
 	this.socket = null;
@@ -57,32 +53,31 @@ function _connection(socket, address, timeout, maxSize) {
 		this.__run();
 	}
 
-	//////////////////////
-	/// SOCKET ACTIONS ///
-	//////////////////////
 	this.__run = function() {
 		this.socket.on('data', (bytes) => {
 			this.msgBuffer += bytes.toString();
 			if(this.msgBuffer != '' && this.msgBuffer != '\n') {
 				var data = this.msgBuffer.split('\n');
+
 				for(var i = 0; i < data.length; i++) {
 					try {
 						if(data[i] == '') {
 							continue;
 						}
 						var msg = JSON.parse(data[i]);
-						this.channels[msg['type']] = msg['data'];
-						if(msg['type'] == IMAGE) {
-							if(base64.test(msg['data'])) {
-								this.emit(msg['type'], msg['data']);
-							}
+						this.__cascade(msg[TYPE], msg[DATA]);
+						if(msg[TYPE] == IMAGE) {
+							this.channels[IMAGE] = decodeImg(msg[DATA]);
 						} else {
-							this.emit(msg['type'], msg['data']);
+							this.channels[msg[TYPE]] = msg[DATA];
 						}
-						this._reset();
+
+						this.emit(msg[TYPE], msg[DATA]);
 						this.emit('data', msg);
+						this.__reset();
 					} catch(err) {};
 				}
+
 			}
 		});
 		this.socket.on('end', () => {
@@ -95,7 +90,7 @@ function _connection(socket, address, timeout, maxSize) {
 	}
 	
 
-	this.__cascase = function(mtype, mdata) {
+	this.__cascade = function(mtype, mdata) {
 		if(mtype == ACK) {
 			this.canWrite = true;
 		}
@@ -118,7 +113,7 @@ function _connection(socket, address, timeout, maxSize) {
 		this.socket.destroy();
 	}
 
-	this._reset = function() {
+	this.__reset = function() {
 		// this.msgBuffer = '';
 		// this.lastData = new Date().getTime();
 		// this.write(ACK, 'True');
@@ -143,8 +138,8 @@ function _connection(socket, address, timeout, maxSize) {
 		}
 		this.type = TYPE_LOCAL;
 		this.opened = true;
+		this.__start();
 		this.write(NAME_CONN, this.name);
-		this.__start()
 	}
 
 	this.get = function(channel) {
@@ -161,6 +156,17 @@ function _connection(socket, address, timeout, maxSize) {
 			'data': data.replace('\n', '')
 		};
 		this.socket.write(JSON.stringify(msg) + NEWLINE);
+	}
+
+	this.writeImg = function(data) {
+		if(this.canWrite && this.opened) {
+			this.canWrite = false;
+			var msg = {
+				'type': IMAGE,
+				'data': data.replace('\n', '')
+			};
+			this.socket.write(JSON.stringify(msg) + NEWLINE);
+		}
 	}
 
 	this.close = function() {
@@ -191,7 +197,7 @@ inherits(_connection, EventEmitter);
 /// HUB CLASS ///
 /////////////////
 
-function host(addr=ADDR, port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
+function host(port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
 	EventEmitter.call(this);
 	this.net = require('net');
 
@@ -212,17 +218,14 @@ function host(addr=ADDR, port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
 	};
 	this.listener = null;
 
-
-	this.__open();
-	this.__start();
-
-	
-
 	//////////////
 	/// SERVER ///
 	//////////////
 
 	this.__open = function() {
+		this.server = this.net.createServer((socket) => {
+			this.listener = socket;
+		});
 		this.server.listen(this.socketpath.port, this.socketpath.address);
 		this.opened = true;
 		return this;
@@ -233,26 +236,24 @@ function host(addr=ADDR, port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
 	}
 
 	this.__run = function() {
-		this.server = this.net.createServer((socket) => {
-				this.listener = socket;
-			});
 
 		this.server.on('connection', (socket) => {
-			for(var i = 0; i < this.sockets.length; i++) {
-				if(this.sockets[i] === socket) {
+			for(var i = 0; i < this.address_connections.length; i++) {
+				if(this.address_connections[i] === socket) {
 					return
 				}
 			}
-			this.sockets.push(socket);
-			var connection = new _connection(socket, socket.address(), this.timeout, this.maxSize)
-			this.clients.push(connection);
-			connection.on('data', (msg) => {
-				this.emit(msg['type'], this.get_ALL(msg['type']));
+			this.address_connections.push(socket);
+			var c = new connection(null, this.timeout, this.maxSize);
+			c.receive(socket, socket.localAddress, socket.localPort);
+			this.connections.push(c)
+			c.on('data', (msg) => {
+				this.emit(msg['type'], this.get_all(msg['type']));
 			});
-			connection.on('error', (err) => {
+			c.on('error', (err) => {
 				this.emit('warning', err);
 			});
-			connection.on('end', () => {
+			c.on('end', () => {
 				this.emit('end');
 			});
 		});
@@ -400,6 +401,9 @@ function host(addr=ADDR, port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
 		}
 		return this;
 	}
+
+	this.__open();
+	this.__start();
 
 }
 
