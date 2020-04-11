@@ -1,25 +1,25 @@
 # socket.engine Universal Communication Library
 
 ### Protocols to Support
-- [ ] Local Data Socket
-- [ ] TCP/IP Socket
+- [x] Local Data Socket
+- [x] TCP/IP Socket
 - [ ] Serial Communication (UART, I2C, SPI, CAN)
 
 ### Languages to Support
-- [ ] Python
+- [x] Python
 - [ ] MicroPython
-- [ ] Node.js
+- [x] Node.js
 - [ ] C++
 - [ ] C
 - [ ] Arduino C++
 
 ### Platforms to Support
-- [ ] Linux
-- [ ] MacOS
+- [x] Linux
+- [x] MacOS
 
 ### Boards to Support
 - [ ] ESP8266
 - [ ] ESP32
-- [ ] Raspberry Pi / Raspberry Pi Zero
+- [x] Raspberry Pi / Raspberry Pi Zero
 - [ ] LEGO EV3 (w/ MicroPython)
-- [ ] Jetson TX2 / Jetson Nano
+- [x] Jetson TX2 / Jetson Nano
