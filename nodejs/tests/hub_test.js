@@ -86,11 +86,9 @@ function test_hub_connection_setup() {
 	success("Hub Connection Setup Test Passed");
 }
 
-// test_hub_connection_setup();
-
 function test_connection_setup() {
-	var h1 = new hub(8080);
-	var h2 = new hub(8081);
+	var h1 = new hub(8082);
+	var h2 = new hub(8083);
 	h2.on('connection', (data) => {
 		assert(h1.connections.length, 1);
 		assert(h2.connections.length, 1);
@@ -114,11 +112,9 @@ function test_connection_setup() {
 	h1.connect(CHANNEL, '127.0.0.1', h2.port);
 }
 
-// test_connection_setup()
-
 function test_empty_messages() {
-	var h1 = new hub(8080);
-	var h2 = new hub(8081);
+	var h1 = new hub(8084);
+	var h2 = new hub(8085);
 	assert(h1.get_all("Test"), []);
 	assert(h2.get_all("Test"), []);
 	assert(h1.get_all("Test2"), []);
@@ -135,11 +131,9 @@ function test_empty_messages() {
 	h1.connect("Test", "127.0.0.1", h2.port);
 }
 
-// test_empty_messages()
-
 function test_oneway_messages() {
-	var h1 = new hub(8080);
-	var h2 = new hub(8081);
+	var h1 = new hub(8086);
+	var h2 = new hub(8087);
 	assert(h1.get_all("Test"), []);
 	assert(h2.get_all("Test"), []);
 	assert(h1.get_all("Test2"), []);
@@ -166,11 +160,9 @@ function test_oneway_messages() {
 	h1.connect("Test", "127.0.0.1", h2.port);
 }
 
-// test_oneway_messages()
-
 function test_bidirectional_messages() {
-	var h1 = new hub(8080);
-	var h2 = new hub(8081);
+	var h1 = new hub(8088);
+	var h2 = new hub(8089);
 	assert(h1.get_all("Test"), []);
 	assert(h2.get_all("Test"), []);
 	assert(h1.get_all("Test2"), []);
@@ -210,4 +202,139 @@ function test_bidirectional_messages() {
 	}, DELAY)
 }
 
-// test_bidirectional_messages()
+function test_high_speed_messages_oneway() {
+	var h1 = new hub(8090);
+	var h2 = new hub(8091);
+	h1.connect("Test", "127.0.0.1", h2.port);
+	var num_runs = 5000;
+	h2.on("finally", (data) => {
+		var flag = true;
+		for(var i = 0; i < num_runs; i++) {
+			if(verify([h2.get_all("Test"+i)], ["test of port "+i]) == false) {
+				flag = false;
+			}
+		}
+		h1.close();
+		h2.close()
+		if(flag) {
+			success("High Speed One-Way Hub Test Passed");
+		} else {
+			failure("High Speed One-Way Hub Test Failed");
+		}
+	})
+	setTimeout(() => {
+		for(var i = 0; i < num_runs; i++) {
+			h1.write_all("Test"+i, "test of port "+i);
+		}
+		h1.write_all("finally", 'true');
+	}, DELAY)
+}
+
+function test_high_speed_messages_bidirectional() {
+	var h1 = new hub(8092);
+	var h2 = new hub(8093);
+	h1.connect("Test", "127.0.0.1", h2.port);
+	var num_runs = 1000;
+	h2.on("finally", (data) => {
+		var flag = true;
+		for(var i = 0; i < num_runs; i++) {
+			if(verify([h1.get_all("Test"+i)], ["test of port "+i]) == false ||
+			   verify([h2.get_all("Test"+i)], ["test of port "+i]) == false) {
+				flag = false;
+			}
+		}
+		h1.close();
+		h2.close()
+		if(flag) {
+			success("High Speed Bidirectional Hub Test Passed");
+		} else {
+			failure("High Speed Bidirectional Hub Test Failed");
+		}
+	})
+	setTimeout(() => {
+		for(var i = 0; i < num_runs; i++) {
+			h1.write_all("Test"+i, "test of port "+i);
+		}
+		setTimeout(() => {
+			for(var i = 0; i < num_runs; i++) {
+				h2.write_all("Test"+i, "test of port "+i);
+			}
+			h1.write_all("finally", 'true');
+		}, DELAY)
+	}, DELAY)
+}
+
+function test_high_throughput_messages_oneway() {
+	var h1 = new hub(8094);
+	var h2 = new hub(8095);
+	h1.connect("Test", "127.0.0.1", h2.port);
+	var num_runs = 5000;
+	h2.on("finally", (data) => {
+		var flag = true;
+		for(var i = 0; i < num_runs; i++) {
+			if(verify([h2.get_all("Test"+i)], [text]) == false) {
+				flag = false;
+				console.log(i)
+			}
+		}
+		h1.close();
+		h2.close()
+		if(flag) {
+			success("High Throughput One-way Hub Test Passed");
+		} else {
+			failure("High Throughput One-way Hub Test Failed");
+		}
+	})
+	setTimeout(() => {
+		for(var i = 0; i < num_runs; i++) {
+			h1.write_all("Test"+i, text);
+		}
+		h1.write_all("finally", 'true');
+	}, DELAY)
+}
+
+function test_high_throughput_messages_bidirectional() {
+	var h1 = new hub(8096);
+	var h2 = new hub(8097);
+	h1.connect("Test", "127.0.0.1", h2.port);
+	var num_runs = 50;
+	h2.on("finally", (data) => {
+		var flag = true;
+		for(var i = 0; i < num_runs; i++) {
+			if(verify([h2.get_all("Test"+i)], [text]) == false) {
+				flag = false;
+				console.log(i)
+			}
+		}
+		h1.close();
+		h2.close()
+		if(flag) {
+			success("High Throughput Bidirectional Hub Test Passed");
+		} else {
+			failure("High Throughput Bidirectional Hub Test Failed");
+		}
+	})
+	setTimeout(() => {
+		for(var i = 0; i < num_runs; i++) {
+			h1.write_all("Test"+i, text);
+		}
+		setTimeout(() => {
+			for(var i = 0; i < num_runs; i++) {
+				h2.write_all("Test"+i, text);
+			}
+			h1.write_all("finally", 'true');
+		}, DELAY)
+	}, DELAY)
+}
+
+
+function main() {
+	var routines = [test_hub_connection_setup, test_connection_setup, test_empty_messages,
+					test_oneway_messages, test_bidirectional_messages, test_high_speed_messages_oneway,
+					test_high_speed_messages_bidirectional, test_high_throughput_messages_oneway, 
+					test_high_throughput_messages_bidirectional];
+	for(var i = 0; i < routines.length; i++) {
+		routines[i]();
+	}
+}
+main();
