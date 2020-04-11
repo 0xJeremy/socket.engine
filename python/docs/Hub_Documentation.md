@@ -39,6 +39,8 @@ h.close()
 
 ## Documentation
 
+#### Hub
+
 Hub Constructor:
 ```
 hub(port=None, timeout=2, size=256)
@@ -79,6 +81,8 @@ hub.write_image_to_local(data):
 hub.write_image_to_remote(data):
 	Writes an image to all remotely hosted sockets.
 ```
+
+#### Connection
 
 Connection Constructor:
 ```

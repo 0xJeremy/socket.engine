@@ -11,6 +11,6 @@ This library requires Python3. It was tested extensively on Python 3.7.5 with Ub
 
 ## Documentation and Examples
 
-[Hub Connections](https://github.com/0xJeremy/socket.engine/blob/master/python/Hub_Documentation.md)
+[Hub Connections](https://github.com/0xJeremy/socket.engine/blob/master/python/docs/Hub_Documentation.md)
 
-[Host / Client Connections](https://github.com/0xJeremy/socket.engine/blob/master/python/HostClient_Documentation.md)
+[Host / Client Connections](https://github.com/0xJeremy/socket.engine/blob/master/python/docs/HostClient_Documentation.md)

@@ -394,7 +394,7 @@ function hub(port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
 		return this;
 	}
 
-	this.write_image_to_local = function(name, data) {
+	this.write_image_to_local = function(data) {
 		for(var i = 0; i < this.connections.length; i++) {
 			if(this.connections[i].type == TYPE_REMOTE) {
 				this.connections[i].writeImg(data);
@@ -403,7 +403,7 @@ function hub(port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
 		return this;
 	}
 
-	this.write_image_to_remote = function(name, data) {
+	this.write_image_to_remote = function(data) {
 		for(var i = 0; i < this.connections.length; i++) {
 			if(this.connections[i].type == TYPE_LOCAL) {
 				this.connections[i].writeImg(data);
