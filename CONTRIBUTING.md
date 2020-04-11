@@ -1,0 +1,3 @@
+If you wish to contribute to this project, all pull requests will be considered. To add new languages, examples must be provided in additional to the code. When considering adding a new language, reach out to [0xJeremy](https://github.com/0xJeremy) for more information.
+
+For any code changes, the interface must remain consistent across all languages and platforms. To discuss major interface changes, [create a GitHub issue](https://github.com/0xJeremy/socket.engine/issues). For any bug fixes, the automated testing infastructure MUST also be updated. Automated tests must pass in order for the change to be considered.
