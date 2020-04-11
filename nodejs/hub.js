@@ -23,8 +23,10 @@ var TYPE_REMOTE = 2;
 /// CONNECTION CLASS ///
 ////////////////////////
 
-function _connection(name, timeout=TIMEOUT, maxSize=MAXSIZE) {
+function connection(name, timeout=TIMEOUT, maxSize=MAXSIZE) {
 	EventEmitter.call(this);
+	this.net = require('net');
+
 	this.name = name;
 	this.socket = null;
 	this.addr = null;
@@ -128,13 +130,14 @@ function _connection(name, timeout=TIMEOUT, maxSize=MAXSIZE) {
 		this.name = name;
 		this.addr = addr;
 		this.port = port;
+		this.socket = new this.net.Socket();
 		while(true) {
 			try {
 				this.socket.connect(this.port, this.addr, () => {
 					this.emit('connected');
 				});
 				break;
-			} catch(err) { }
+			} catch(err) {console.log(err) }
 		}
 		this.type = TYPE_LOCAL;
 		this.opened = true;
@@ -189,7 +192,7 @@ function _connection(name, timeout=TIMEOUT, maxSize=MAXSIZE) {
 	}
 }
 
-inherits(_connection, EventEmitter);
+inherits(connection, EventEmitter);
 
 ///////////////////////////////////////////////////////////////
 
@@ -197,7 +200,7 @@ inherits(_connection, EventEmitter);
 /// HUB CLASS ///
 /////////////////
 
-function host(port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
+function hub(port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
 	EventEmitter.call(this);
 	this.net = require('net');
 
@@ -214,7 +217,7 @@ function host(port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
 	this.socketpath = {
 		'port': this.port,
 		'family': FAMILY,
-		'address': this.addr
+		'address': '127.0.0.1'
 	};
 	this.listener = null;
 
@@ -235,6 +238,20 @@ function host(port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
 		this.__run();
 	}
 
+	this.__addListeners = function(c) {
+		this.connections.push(c)
+		c.on('data', (msg) => {
+			this.emit(msg['type'], this.get_all(msg['type']));
+		});
+		c.on('error', (err) => {
+			this.emit('warning', err);
+		});
+		c.on('end', () => {
+			this.emit('end');
+		});
+		this.emit('connection', c);
+	}
+
 	this.__run = function() {
 
 		this.server.on('connection', (socket) => {
@@ -246,30 +263,23 @@ function host(port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
 			this.address_connections.push(socket);
 			var c = new connection(null, this.timeout, this.maxSize);
 			c.receive(socket, socket.localAddress, socket.localPort);
-			this.connections.push(c)
-			c.on('data', (msg) => {
-				this.emit(msg['type'], this.get_all(msg['type']));
-			});
-			c.on('error', (err) => {
-				this.emit('warning', err);
-			});
-			c.on('end', () => {
-				this.emit('end');
-			});
+			this.__addListeners(c);
 		});
 	}
 
 	this.connect = function(name, addr, port) {
 		var c = new connection(this.timeout, this.size);
 		c.connect(name, addr, port);
-		this.connections.push(c);
+		this.__addListeners(c);
 		return this;
 	}
 
 	this.close = function() {
-		for(var i = 0; i < this.clients.length; i++) {
-			this.clients[i].close();
+		for(var i = 0; i < this.connections.length; i++) {
+			this.connections[i].close();
 		}
+		this.stopped = true;
+		this.opened = false;
 	}
 
 	this.getConnections = function() {
@@ -282,8 +292,8 @@ function host(port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
 
 	this.get_all = function(channel) {
 		var data = [];
-		for(var i = 0; i < this.clients.length; i++) {
-			var tmp = this.clients[i].get(channel)
+		for(var i = 0; i < this.connections.length; i++) {
+			var tmp = this.connections[i].get(channel);
 			if(tmp != undefined) {
 				data.push(tmp);
 			}
@@ -293,9 +303,9 @@ function host(port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
 
 	this.get_by_name = function(name, channel) {
 		var data = [];
-		for(var i = 0; i < this.clients.length; i++) {
-			if(this.clients[i].name == name) {
-				var tmp = this.clients[i].get(channel)
+		for(var i = 0; i < this.connections.length; i++) {
+			if(this.connections[i].name == name) {
+				var tmp = this.connections[i].get(channel);
 				if(tmp != undefined) {
 					data.push(tmp);
 				}
@@ -306,9 +316,9 @@ function host(port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
 
 	this.get_local = function(channel) {
 		var data = [];
-		for(var i = 0; i < this.clients.length; i++) {
-			if(this.clients[i].type == TYPE_LOCAL) {
-				var tmp = this.clients[i].get(channel)
+		for(var i = 0; i < this.connections.length; i++) {
+			if(this.connections[i].type == TYPE_LOCAL) {
+				var tmp = this.connections[i].get(channel);
 				if(tmp != undefined) {
 					data.push(tmp);
 				}
@@ -319,9 +329,9 @@ function host(port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
 
 	this.get_remote = function(channel) {
 		var data = [];
-		for(var i = 0; i < this.clients.length; i++) {
-			if(this.clients[i].type == TYPE_REMOTE) {
-				var tmp = this.clients[i].get(channel)
+		for(var i = 0; i < this.connections.length; i++) {
+			if(this.connections[i].type == TYPE_REMOTE) {
+				var tmp = this.connections[i].get(channel);
 				if(tmp != undefined) {
 					data.push(tmp);
 				}
@@ -335,68 +345,68 @@ function host(port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
 	//////////////////////////
 
 	this.write_all = function(channel, data) {
-		for(var i = 0; i < this.clients.length; i++) {
-			this.clients[i].write(channel, data);
+		for(var i = 0; i < this.connections.length; i++) {
+			this.connections[i].write(channel, data);
 		}
 		return this;
 	}
 
 	this.write_to_name = function(name, channel, data) {
-		for(var i = 0; i < this.clients.length; i++) {
-			if(this.clients[i].name == name) {
-				this.clients[i].write(channel, data);
+		for(var i = 0; i < this.connections.length; i++) {
+			if(this.connections[i].name == name) {
+				this.connections[i].write(channel, data);
 			}
 		}
 		return this;
 	}
 
 	this.write_to_local = function(channel, data) {
-		for(var i = 0; i < this.clients.length; i++) {
-			if(this.clients[i].type == TYPE_REMOTE) {
-				this.clients[i].write(channel, data);
+		for(var i = 0; i < this.connections.length; i++) {
+			if(this.connections[i].type == TYPE_REMOTE) {
+				this.connections[i].write(channel, data);
 			}
 		}
 		return this;
 	}
 
 	this.write_to_remote = function(channel, data) {
-		for(var i = 0; i < this.clients.length; i++) {
-			if(this.clients[i].type == TYPE_LOCAL) {
-				this.clients[i].write(channel, data);
+		for(var i = 0; i < this.connections.length; i++) {
+			if(this.connections[i].type == TYPE_LOCAL) {
+				this.connections[i].write(channel, data);
 			}
 		}
 		return this;
 	}
 
 	this.write_image_all = function(data) {
-		for(var i = 0; i < this.clients.length; i++) {
-			this.clients[i].writeImg(data);
+		for(var i = 0; i < this.connections.length; i++) {
+			this.connections[i].writeImg(data);
 		}
 		return this;
 	}
 
 	this.write_image_to_name = function(name, data) {
-		for(var i = 0; i < this.clients.length; i++) {
-			if(this.clients[i].name == name) {
-				this.clients[i].writeImg(data);
+		for(var i = 0; i < this.connections.length; i++) {
+			if(this.connections[i].name == name) {
+				this.connections[i].writeImg(data);
 			}
 		}
 		return this;
 	}
 
 	this.write_image_to_local = function(name, data) {
-		for(var i = 0; i < this.clients.length; i++) {
-			if(this.clients[i].type == TYPE_REMOTE) {
-				this.clients[i].writeImg(data);
+		for(var i = 0; i < this.connections.length; i++) {
+			if(this.connections[i].type == TYPE_REMOTE) {
+				this.connections[i].writeImg(data);
 			}
 		}
 		return this;
 	}
 
 	this.write_image_to_remote = function(name, data) {
-		for(var i = 0; i < this.clients.length; i++) {
-			if(this.clients[i].type == TYPE_LOCAL) {
-				this.clients[i].writeImg(data);
+		for(var i = 0; i < this.connections.length; i++) {
+			if(this.connections[i].type == TYPE_LOCAL) {
+				this.connections[i].writeImg(data);
 			}
 		}
 		return this;
@@ -407,6 +417,6 @@ function host(port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
 
 }
 
-inherits(host, EventEmitter);
+inherits(hub, EventEmitter);
 
-module.exports = exports = host;
+module.exports = exports = hub;
