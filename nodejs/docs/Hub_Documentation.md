@@ -13,7 +13,7 @@ This library was tested with Node.js v10.15.2 on Ubuntu 19.04.
 
 ```javascript
 // Program 1
-var hub = require('./hub');
+var hub = require('socket.engine').hub;
 
 h = new hub(8080)
 
@@ -29,7 +29,7 @@ h.on("hello", (data) => {
 
 ```javascript
 // Program 2
-var hub = require('./hub');
+var hub = require('socket.engine').hub;
 
 h = new hub(8081)
 

@@ -13,7 +13,7 @@ This library was tested with Node.js v10.15.2 on Ubuntu 19.04.
 
 #### Host
 ```javascript
-var host = require('socketengine').host;
+var host = require('socket.engine').host;
 
 var h = new host();
 h.start();
@@ -26,7 +26,7 @@ h.on("Test", (data) => {
 
 #### Client
 ```javascript
-var client = require('socketengine').client;
+var client = require('socket.engine').client;
 
 var c = new client();
 c.start();
