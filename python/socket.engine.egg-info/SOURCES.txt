@@ -10,6 +10,7 @@ socketengine/common.py
 socketengine/constants.py
 socketengine/host.py
 socketengine/hub.py
+socketengine/transport.py
 tests/__init__.py
 tests/host_client_test.py
 tests/hub_test.py

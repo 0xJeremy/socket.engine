@@ -1,10 +1,11 @@
 from .client import client as _client
 from .host import host as _host
-from .hub import connection as _connection
-from .hub import hub as _hub
+
+from .transport import Transport as _Transport
+from .hub import Hub as _Hub
 
 client = _client
 host = _host
 
-connection = _connection
-hub = _hub
+Transport = _Transport
+Hub = _Hub

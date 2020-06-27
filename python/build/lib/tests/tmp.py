@@ -11,26 +11,30 @@ DEBUG = False
 ### HELPER FUNCTIONS ###
 ########################
 
+
 def s(a=DELAY):
-	time.sleep(a)
+    time.sleep(a)
+
 
 def report(text):
-	global DEBUG
-	if DEBUG:
-		print("\033[93m[{}]\033[0m".format(text))
+    global DEBUG
+    if DEBUG:
+        print("\033[93m[{}]\033[0m".format(text))
+
 
 def success(text):
-	print("\033[32m[{}]\033[0m".format(text))
-	s(1)
+    print("\033[32m[{}]\033[0m".format(text))
+    s(1)
+
 
 def initialize():
-	h = host(timeout=TIMEOUT)
-	c = client(timeout=TIMEOUT)
-	report("Sockets initialized")
-	h.start()
-	c.start()
-	report("Sockets started")
-	return h, c
+    h = host(timeout=TIMEOUT)
+    c = client(timeout=TIMEOUT)
+    report("Sockets initialized")
+    h.start()
+    c.start()
+    report("Sockets started")
+    return h, c
 
 
 text = "Consulted he eagerness unfeeling deficient existence of. Calling nothing end fertile for venture way boy. Esteem spirit temper too say adieus who direct esteem. It esteems luckily mr or picture placing drawing no. Apartments frequently or motionless on reasonable projecting expression. Way mrs end gave tall walk fact bed. \
@@ -41,18 +45,16 @@ Yet remarkably appearance get him his projection. Diverted endeavor bed peculiar
 Luckily friends do ashamed to do suppose. Tried meant mr smile so. Exquisite behaviour as to middleton perfectly. Chicken no wishing waiting am. Say concerns dwelling graceful six humoured. Whether mr up savings talking an. Active mutual nor father mother exeter change six did all. "
 
 
-
-
 RUNS = 10
 
 for i in range(10):
-	c = client(addr='127.0.0.1', port=8080)
-	c.start()
-	c.write("test", text)
-	c.close()
+    c = client(addr="127.0.0.1", port=8080)
+    c.start()
+    c.write("test", text)
+    c.close()
 
 print("Wrote test")
-c = client(addr='127.0.0.1', port=8080)
+c = client(addr="127.0.0.1", port=8080)
 c.start()
 c.write("verify", RUNS)
 print("Wrote verify")
