@@ -2,7 +2,7 @@
   "name": "socket.engine",
   "version": "0.3.0",
   "description": "A universal communication engine",
-  "main": "socketengine.js",
+  "main": "index.js",
   "scripts": {
     "test": "node tests/test.js"
   },

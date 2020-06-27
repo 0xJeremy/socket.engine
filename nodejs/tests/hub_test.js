@@ -1,7 +1,7 @@
 'use strict'
 
 var assertion = require('assert');
-var hub = require('../hub');
+var Hub = require('../index').Hub;
 
 var DEBUG = false;
 var DELAY = 1000;
@@ -27,8 +27,8 @@ function failure(text) {
 }
 
 function initialize(port=8080) {
-	var h1 = new hub(8080)
-	var h2 = new hub(8081)
+	var h1 = new Hub(8080)
+	var h2 = new Hub(8081)
 	h1.connect(CHANNEL, "127.0.0.1", h2.port)
 	report("Hubs created and started")
 	return [h1, h2]
@@ -64,18 +64,18 @@ Luckily friends do ashamed to do suppose. Tried meant mr smile so. Exquisite beh
 /// UNIT TESTS ///
 //////////////////
 
-function test_hub_connection_setup() {
-	var h1 = new hub(8080);
+function test_Hub_transport_setup() {
+	var h1 = new Hub(8080);
 	assert(h1.opened, true);
 	assert(h1.stopped, false);
-	var h2 = new hub(8081);
+	var h2 = new Hub(8081);
 	assert(h2.opened, true);
 	assert(h2.stopped, false);
 	report("Sockets opened and started");
-	assert(h1.connections.length, 0);
-	assert(h2.connections.length, 0);
-	assert(h1.address_connections.length, 0);
-	assert(h2.address_connections.length, 0);
+	assert(h1.transports.length, 0);
+	assert(h2.transports.length, 0);
+	assert(h1.transportAddresses.length, 0);
+	assert(h2.transportAddresses.length, 0);
 	report("Connection assertions finished");
 	h1.close();
 	h2.close();
@@ -86,14 +86,14 @@ function test_hub_connection_setup() {
 	success("Hub Connection Setup Test Passed");
 }
 
-function test_connection_setup() {
-	var h1 = new hub(8082);
-	var h2 = new hub(8083);
+function test_transport_setup() {
+	var h1 = new Hub(8082);
+	var h2 = new Hub(8083);
 	h2.on('connection', (data) => {
-		assert(h1.connections.length, 1);
-		assert(h2.connections.length, 1);
-		var c1 = h1.connections[0];
-		var c2 = h2.connections[0];
+		assert(h1.transports.length, 1);
+		assert(h2.transports.length, 1);
+		var c1 = h1.transports[0];
+		var c2 = h2.transports[0];
 		assert(c1.opened, true);
 		assert(c2.opened, true);
 		assert(c1.stopped, false);
@@ -113,8 +113,8 @@ function test_connection_setup() {
 }
 
 function test_empty_messages() {
-	var h1 = new hub(8084);
-	var h2 = new hub(8085);
+	var h1 = new Hub(8084);
+	var h2 = new Hub(8085);
 	assert(h1.get_all("Test"), []);
 	assert(h2.get_all("Test"), []);
 	assert(h1.get_all("Test2"), []);
@@ -132,8 +132,8 @@ function test_empty_messages() {
 }
 
 function test_oneway_messages() {
-	var h1 = new hub(8086);
-	var h2 = new hub(8087);
+	var h1 = new Hub(8086);
+	var h2 = new Hub(8087);
 	assert(h1.get_all("Test"), []);
 	assert(h2.get_all("Test"), []);
 	assert(h1.get_all("Test2"), []);
@@ -161,8 +161,8 @@ function test_oneway_messages() {
 }
 
 function test_bidirectional_messages() {
-	var h1 = new hub(8088);
-	var h2 = new hub(8089);
+	var h1 = new Hub(8088);
+	var h2 = new Hub(8089);
 	assert(h1.get_all("Test"), []);
 	assert(h2.get_all("Test"), []);
 	assert(h1.get_all("Test2"), []);
@@ -203,8 +203,8 @@ function test_bidirectional_messages() {
 }
 
 function test_high_speed_messages_oneway() {
-	var h1 = new hub(8090);
-	var h2 = new hub(8091);
+	var h1 = new Hub(8090);
+	var h2 = new Hub(8091);
 	h1.connect("Test", "127.0.0.1", h2.port);
 	var num_runs = 5000;
 	h2.on("finally", (data) => {
@@ -231,8 +231,8 @@ function test_high_speed_messages_oneway() {
 }
 
 function test_high_speed_messages_bidirectional() {
-	var h1 = new hub(8092);
-	var h2 = new hub(8093);
+	var h1 = new Hub(8092);
+	var h2 = new Hub(8093);
 	h1.connect("Test", "127.0.0.1", h2.port);
 	var num_runs = 1000;
 	h2.on("finally", (data) => {
@@ -265,8 +265,8 @@ function test_high_speed_messages_bidirectional() {
 }
 
 function test_high_throughput_messages_oneway() {
-	var h1 = new hub(8094);
-	var h2 = new hub(8095);
+	var h1 = new Hub(8094);
+	var h2 = new Hub(8095);
 	h1.connect("Test", "127.0.0.1", h2.port);
 	var num_runs = 5000;
 	h2.on("finally", (data) => {
@@ -294,8 +294,8 @@ function test_high_throughput_messages_oneway() {
 }
 
 function test_high_throughput_messages_bidirectional() {
-	var h1 = new hub(8096);
-	var h2 = new hub(8097);
+	var h1 = new Hub(8096);
+	var h2 = new Hub(8097);
 	h1.connect("Test", "127.0.0.1", h2.port);
 	var num_runs = 50;
 	h2.on("finally", (data) => {
@@ -329,7 +329,7 @@ function test_high_throughput_messages_bidirectional() {
 
 
 function main() {
-	var routines = [test_hub_connection_setup, test_connection_setup, test_empty_messages,
+	var routines = [test_Hub_transport_setup, test_transport_setup, test_empty_messages,
 					test_oneway_messages, test_bidirectional_messages, test_high_speed_messages_oneway,
 					test_high_speed_messages_bidirectional, test_high_throughput_messages_oneway, 
 					test_high_throughput_messages_bidirectional];

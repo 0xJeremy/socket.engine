@@ -30,6 +30,12 @@ var data = {
 	CLOSING   : '__closing',
 	ACK       : '__ack',
 	NAME_CONN : '__name_conn',
+
+	/////////////
+	/// ENUMS ///
+	/////////////
+	TYPE_LOCAL  : 1,
+	TYPE_REMOTE : 2,
 }
 
 module.exports = exports = data;

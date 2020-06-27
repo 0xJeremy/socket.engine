@@ -9,8 +9,8 @@ SCRIPT_DIR = os.path.dirname(
 )
 sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
 
-from socketengine import hub
-from socketengine import connection
+from socketengine import Hub
+from socketengine import Transport
 import time
 import argparse
 
@@ -40,8 +40,8 @@ def success(text):
 
 
 def initialize():
-    h1 = hub(timeout=TIMEOUT)
-    h2 = hub(timeout=TIMEOUT)
+    h1 = Hub(timeout=TIMEOUT)
+    h2 = Hub(timeout=TIMEOUT)
     h1.connect(CHANNEL, "127.0.0.1", h2.port)
     report("Hubs created and started")
     s(0.1)
@@ -60,10 +60,10 @@ Luckily friends do ashamed to do suppose. Tried meant mr smile so. Exquisite beh
 ##################
 
 
-def test_hub_connection_setup():
+def test_hub_transport_setup():
     start = time.time()
-    h1 = hub(timeout=TIMEOUT)
-    h2 = hub(timeout=TIMEOUT)
+    h1 = Hub(timeout=TIMEOUT)
+    h2 = Hub(timeout=TIMEOUT)
     report("Hubs created and started")
     assert h1.opened
     assert not h1.stopped
@@ -71,8 +71,8 @@ def test_hub_connection_setup():
     assert not h2.stopped
     h1.connect(CHANNEL, "127.0.0.1", h2.port)
     s(0.1)
-    assert len(h1.connections) is 1
-    assert len(h2.connections) is 1
+    assert len(h1.transports) is 1
+    assert len(h2.transports) is 1
     h1.close()
     h2.close()
     assert not h1.opened
@@ -82,17 +82,17 @@ def test_hub_connection_setup():
     success("Hub Connection Setup Test Passed ({:.5f} sec)".format(time.time() - start))
 
 
-def test_connection_setup():
+def test_transport_setup():
     start = time.time()
-    h1 = hub(timeout=TIMEOUT)
-    h2 = hub(timeout=TIMEOUT)
+    h1 = Hub(timeout=TIMEOUT)
+    h2 = Hub(timeout=TIMEOUT)
     report("Hubs created and started")
     h1.connect(CHANNEL, "127.0.0.1", h2.port)
     s(0.1)
-    assert len(h1.connections) is 1
-    assert len(h2.connections) is 1
-    c1 = h1.connections[0]
-    c2 = h2.connections[0]
+    assert len(h1.transports) is 1
+    assert len(h2.transports) is 1
+    c1 = h1.transports[0]
+    c2 = h2.transports[0]
     assert c1.opened
     assert not c1.stopped
     assert c2.opened
@@ -113,8 +113,8 @@ def test_connection_setup():
 
 def test_empty_messages():
     start = time.time()
-    h1 = hub(timeout=TIMEOUT)
-    h2 = hub(timeout=TIMEOUT)
+    h1 = Hub(timeout=TIMEOUT)
+    h2 = Hub(timeout=TIMEOUT)
     assert h1.get_all("Test") == []
     assert h2.get_all("Test") == []
     assert h1.get_all("Test2") == []
@@ -132,8 +132,8 @@ def test_empty_messages():
 
 def test_oneway_messages():
     start = time.time()
-    h1 = hub(timeout=TIMEOUT)
-    h2 = hub(timeout=TIMEOUT)
+    h1 = Hub(timeout=TIMEOUT)
+    h2 = Hub(timeout=TIMEOUT)
     assert h1.get_all("Test") == []
     assert h2.get_all("Test") == []
     assert h1.get_all("Test2") == []
@@ -192,7 +192,7 @@ def test_high_speed(num=10, bidirectional=False, sleep=0.1):
         if bidirectional:
             h2.write_to_name(CHANNEL, "test{}".format(i), text)
     s(sleep)
-    assert len(h1.connections) == len(h2.connections)
+    assert len(h1.transports) == len(h2.transports)
     for i in range(num):
         if bidirectional:
             assert h1.get_all("test{}".format(i)) == [text]
@@ -239,13 +239,13 @@ def test_extreme_throughput():
     success("Extreme Throughput Test Passed ({:.5f} sec)".format(time.time() - start))
 
 
-def multi_connections(num_conn=10, messages=10, bidirectional=False):
-    h1 = hub(timeout=TIMEOUT)
-    h2 = hub(timeout=TIMEOUT)
+def multi_transports(num_conn=10, messages=10, bidirectional=False):
+    h1 = Hub(timeout=TIMEOUT)
+    h2 = Hub(timeout=TIMEOUT)
     for i in range(num_conn):
         h1.connect("Test{}".format(i), "127.0.0.1", h2.port)
     s()
-    assert len(h1.connections) == len(h2.connections)
+    assert len(h1.transports) == len(h2.transports)
     for i in range(messages):
         h1.write_all("Test{}".format(i), text)
         if bidirectional:
@@ -259,17 +259,17 @@ def multi_connections(num_conn=10, messages=10, bidirectional=False):
     h2.close()
 
 
-def test_multi_connections_oneway():
+def test_multi_transports_oneway():
     start = time.time()
-    multi_connections()
+    multi_transports()
     success(
         "Multi-Connection One-Way Test Passed ({:.5f} sec)".format(time.time() - start)
     )
 
 
-def test_multi_connections_bidirectional():
+def test_multi_transports_bidirectional():
     start = time.time()
-    multi_connections(bidirectional=True)
+    multi_transports(bidirectional=True)
     success(
         "Multi-Connection Bidirectional Test Passed ({:.5f} sec)".format(
             time.time() - start
@@ -277,24 +277,24 @@ def test_multi_connections_bidirectional():
     )
 
 
-def test_multiple_connections_stress():
+def test_multiple_transports_stress():
     start = time.time()
-    multi_connections(num_conn=25, messages=1000, bidirectional=True)
+    multi_transports(num_conn=25, messages=1000, bidirectional=True)
     success(
         "Multi-Connection Stress Test Passed ({:.5f} sec)".format(time.time() - start)
     )
 
 
 def stress_test(stress=5, messages=1000):
-    h1 = hub(timeout=TIMEOUT)
-    h2 = hub(timeout=TIMEOUT)
+    h1 = Hub(timeout=TIMEOUT)
+    h2 = Hub(timeout=TIMEOUT)
     for i in range(stress):
         if i % 2 == 0:
             h1.connect("Test{}".format(i), "127.0.0.1", h2.port)
         else:
             h2.connect("Test{}".format(i), "127.0.0.1", h1.port)
     s()
-    assert len(h1.connections) == len(h2.connections)
+    assert len(h1.transports) == len(h2.transports)
     for i in range(messages):
         h1.write_all("Test{}".format(i), text)
         h2.write_all("Test{}".format(i), text)
@@ -333,7 +333,7 @@ def stress_test_v4():
 def multi_hub_stress_test(stress=5, messages=1000):
     hubs = []
     for i in range(stress):
-        h = hub(timeout=TIMEOUT)
+        h = Hub(timeout=TIMEOUT)
         hubs.append(h)
     report("Hubs created")
     for h1 in hubs:
@@ -342,8 +342,8 @@ def multi_hub_stress_test(stress=5, messages=1000):
     report("Hubs linked")
     s()
     for h in hubs:
-        assert len(h.connections) == 2 * stress
-    report("Hub connections verified")
+        assert len(h.transports) == 2 * stress
+    report("Hub transports verified")
     for h in hubs:
         for i in range(messages):
             h.write_all("Test{}".format(i), text)
@@ -401,8 +401,8 @@ def main(args):
     if args.sleep:
         DELAY = args.sleep
     routines = [
-        test_hub_connection_setup,
-        test_connection_setup,
+        test_hub_transport_setup,
+        test_transport_setup,
         test_empty_messages,
         test_oneway_messages,
         test_bidirectional_messages,
@@ -411,9 +411,9 @@ def main(args):
         test_oneway_high_throughput,
         test_bidirectional_high_throughput,
         test_extreme_throughput,
-        test_multi_connections_oneway,
-        test_multi_connections_bidirectional,
-        test_multiple_connections_stress,
+        test_multi_transports_oneway,
+        test_multi_transports_bidirectional,
+        test_multiple_transports_stress,
         stress_test_v1,
         stress_test_v2,
         stress_test_v3,

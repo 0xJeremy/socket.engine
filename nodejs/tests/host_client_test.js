@@ -1,8 +1,8 @@
 'use strict'
 
 var assertion = require('assert');
-var host = require('../socketengine').host;
-var client = require('../socketengine').client;
+var host = require('../index').host;
+var client = require('../index').client;
 
 var DEBUG = false;
 var DELAY = 1000;
