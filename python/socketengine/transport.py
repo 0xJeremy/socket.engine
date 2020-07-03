@@ -54,7 +54,7 @@ class Transport:
         return self
 
     def __run(self):
-        tmp = ""
+        tmp = ''
         while True:
             if self.stopped:
                 self.socket.close()
@@ -113,10 +113,13 @@ class Transport:
                 self.socket.connect((self.addr, self.port))
                 break
             except socket.timeout:
+                self.socket.close()
                 continue
             except socket.gaierror:
+                self.socket.close()
                 continue
             except OSError as error:
+                self.socket.close()
                 if isinstance(error, ConnectionRefusedError):
                     continue
                 raise RuntimeError('Socket address in use: {}'.format(error))
@@ -125,13 +128,40 @@ class Transport:
         self.write(NAME_CONN, self.name)
         self.__start()
 
+    def waitForConnection(self, port):
+        self.port = port
+        while True:
+            try:
+                self.socket = generateSocket(self.timeout)
+                self.socket.bind(('', self.port))
+                self.socket.listen()
+                break
+            except OSError as error:
+                self.socket.close()
+                raise RuntimeError('Socket address in use: {}'.format(error))
+            except socket.timeout:
+                self.socket.close()
+                continue
+        while True:
+            try:
+                conn, addr = self.socket.accept()
+                addr, port = addr
+                oldSocket = self.socket
+                self.receive(conn, addr, port)
+                oldSocket.close()
+                break
+            except OSError as error:
+                continue
+            except socket.timeout:
+                continue
+
     def get(self, channel):
         with self.lock:
             if channel in self.channels.keys():
                 return self.channels[channel]
             return None
 
-    def getImg(self):
+    def getImage(self):
         if IMAGE in self.channels.keys():
             return self.channels[IMAGE]
         return None
@@ -142,7 +172,7 @@ class Transport:
                 msg = {TYPE: channel.replace('\n', ''), DATA: data.replace('\n', '')}
                 self.socket.sendall(dictToJson(msg).encode() + NEWLINE)
 
-    def writeImg(self, data):
+    def writeImage(self, data):
         if self.canWrite and self.opened:
             with self.lock:
                 self.canWrite = False

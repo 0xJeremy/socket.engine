@@ -36,7 +36,7 @@ def sendVideo():
             cv2.destroyAllWindows()
             hub.close()
             break
-        transport.writeImg(frame)
+        transport.writeImage(frame)
 
 
 def getVideo():
@@ -46,7 +46,7 @@ def getVideo():
         pass
     transport = hub.transports[0]
     print('Starting capture')
-    while transport.getImg() is None:
+    while transport.getImage() is None:
         pass
     while True:
         key = cv2.waitKey(1) & 0xFF

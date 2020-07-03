@@ -7,8 +7,8 @@ NEWLINE = '\n'.encode()
 TYPE = 'type'
 DATA = 'data'
 IMAGE = '__image'
-IMG_MSG_S = '{"type": "__image", "data": '.encode()
-IMG_MSG_E = '}'.encode()
+IMG_MSG_S = '{"type": "__image", "data": "'.encode()
+IMG_MSG_E = '"}'.encode()
 
 ########################
 ### SOCKET CONSTANTS ###

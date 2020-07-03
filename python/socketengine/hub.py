@@ -35,25 +35,27 @@ class Hub:
         while True:
             try:
                 self.socket = generateSocket(self.timeout)
-                self.socket.bind(("", self.port))
+                self.socket.bind(('', self.port))
                 self.socket.listen()
-                break
+                return
             except OSError as error:
+                self.socket.close()
                 if self.userDefinedPort or self.port > (PORT + MAX_RETRIES):
-                    raise RuntimeError("Socket address in use: {}".format(error))
+                    raise RuntimeError('Socket address in use: {}'.format(error))
                 self.port += 1
             except socket.timeout:
+                self.socket.close()
                 continue
 
     def __start(self):
         if self.socket is None:
-            raise RuntimeError("Hub started without host socket")
+            raise RuntimeError('Hub started without host socket')
         self.opened = True
         Thread(target=self.__run, args=()).start()
         return self
 
     def __run(self):
-        tmp = ""
+        tmp = ''
         while True:
             if self.stopped:
                 for transport in self.transports:
