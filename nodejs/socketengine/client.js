@@ -3,31 +3,27 @@
 const EventEmitter = require('events').EventEmitter;
 const inherits = require('util').inherits;
 const ip = require('ip');
+const net = require('net');
 
 // ///////////////
 // / CONSTANTS ///
 // ///////////////
 
-const STOP = 'STOP';
-const ACK = '__ack';
 const IMAGE = 'image';
 const NEWLINE = '\n';
 
 const ADDR = ip.address();
 const PORT = 8080;
-const MAXSIZE = 1500000;
 
 // //////////////////
 // / CLIENT CLASS ///
 // //////////////////
 
-function client(addr = ADDR, port = PORT) {
+function Client(addr = ADDR, port = PORT) {
   EventEmitter.call(this);
-  this.net = require('net');
-
   this.addr = addr;
   this.port = port;
-  this.socket = new this.net.Socket();
+  this.socket = new net.Socket();
   this.msgBuffer = '';
   this.channels = {};
   this.opened = false;
@@ -106,6 +102,6 @@ function client(addr = ADDR, port = PORT) {
   };
 }
 
-inherits(client, EventEmitter);
+inherits(Client, EventEmitter);
 
-module.exports = exports = client;
+module.exports = exports = Client;

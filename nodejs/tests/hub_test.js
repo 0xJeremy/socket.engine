@@ -5,7 +5,6 @@ const Hub = require('../index').Hub;
 
 const DEBUG = false;
 const DELAY = 1000;
-const TIMEOUT = 0.5;
 const CHANNEL = 'Test';
 
 // //////////////////////
@@ -26,14 +25,6 @@ function failure(text) {
   console.log('\x1b[31m[%s]\x1b[0m', text);
 }
 
-function initialize(port = 8080) {
-  const h1 = new Hub(8080);
-  const h2 = new Hub(8081);
-  h1.connect(CHANNEL, '127.0.0.1', h2.port);
-  report('Hubs created and started');
-  return [h1, h2];
-}
-
 function assert(v1, v2) {
   assertion.deepEqual(v1, v2);
 }
@@ -52,6 +43,8 @@ function verify(a1, a2) {
   return true;
 }
 
+/* eslint-disable max-len, no-multi-str */
+
 const text =
   'Consulted he eagerness unfeeling deficient existence of. Calling nothing end fertile for venture way boy. Esteem spirit temper too say adieus who direct esteem. It esteems luckily mr or picture placing drawing no. Apartments frequently or motionless on reasonable projecting expression. Way mrs end gave tall walk fact bed. \
 Left till here away at to whom past. Feelings laughing at no wondered repeated provided finished. It acceptance thoroughly my advantages everything as. Are projecting inquietude affronting preference saw who. Marry of am do avoid ample as. Old disposal followed she ignorant desirous two has. Called played entire roused though for one too. He into walk roof made tall cold he. Feelings way likewise addition wandered contempt bed indulged. \
@@ -60,11 +53,13 @@ Death weeks early had their and folly timed put. Hearted forbade on an village y
 Yet remarkably appearance get him his projection. Diverted endeavor bed peculiar men the not desirous. Acuteness abilities ask can offending furnished fulfilled sex. Warrant fifteen exposed ye at mistake. Blush since so in noisy still built up an again. As young ye hopes no he place means. Partiality diminution gay yet entreaties admiration. In mr it he mention perhaps attempt pointed suppose. Unknown ye chamber of warrant of norland arrived. \
 Luckily friends do ashamed to do suppose. Tried meant mr smile so. Exquisite behaviour as to middleton perfectly. Chicken no wishing waiting am. Say concerns dwelling graceful six humoured. Whether mr up savings talking an. Active mutual nor father mother exeter change six did all. ';
 
+/* eslint-enable */
+
 // ////////////////
 // / UNIT TESTS ///
 // ////////////////
 
-function test_Hub_transport_setup() {
+function testHubTransportSetup() {
   const h1 = new Hub(8080);
   assert(h1.opened, true);
   assert(h1.stopped, false);
@@ -86,7 +81,7 @@ function test_Hub_transport_setup() {
   success('Hub Connection Setup Test Passed');
 }
 
-function test_transport_setup() {
+function testTransportSetup() {
   const h1 = new Hub(8082);
   const h2 = new Hub(8083);
   h2.on('connection', (data) => {
@@ -112,7 +107,7 @@ function test_transport_setup() {
   h1.connect(CHANNEL, '127.0.0.1', h2.port);
 }
 
-function test_empty_messages() {
+function testEmptyMessages() {
   const h1 = new Hub(8084);
   const h2 = new Hub(8085);
   assert(h1.get_all('Test'), []);
@@ -131,7 +126,7 @@ function test_empty_messages() {
   h1.connect('Test', '127.0.0.1', h2.port);
 }
 
-function test_oneway_messages() {
+function testOnewayMessages() {
   const h1 = new Hub(8086);
   const h2 = new Hub(8087);
   assert(h1.get_all('Test'), []);
@@ -160,18 +155,18 @@ function test_oneway_messages() {
   h1.connect('Test', '127.0.0.1', h2.port);
 }
 
-function test_bidirectional_messages() {
+function testBidirectionalMessages() {
   const h1 = new Hub(8088);
   const h2 = new Hub(8089);
   assert(h1.get_all('Test'), []);
   assert(h2.get_all('Test'), []);
   assert(h1.get_all('Test2'), []);
   assert(h2.get_all('Test2'), []);
-  let tests_run = 0;
-  const num_tests = 4;
+  let testsRun = 0;
+  const numTests = 4;
   function verify() {
-    tests_run += 1;
-    if (tests_run == num_tests) {
+    testsRun += 1;
+    if (testsRun == numTests) {
       h1.close();
       h2.close();
       success('Bidirectional messages Test Passed');
@@ -202,14 +197,14 @@ function test_bidirectional_messages() {
   }, DELAY);
 }
 
-function test_high_speed_messages_oneway() {
+function testOnewayHighspeedMessages() {
   const h1 = new Hub(8090);
   const h2 = new Hub(8091);
   h1.connect('Test', '127.0.0.1', h2.port);
-  const num_runs = 5000;
+  const numRuns = 5000;
   h2.on('finally', (data) => {
     let flag = true;
-    for (let i = 0; i < num_runs; i++) {
+    for (let i = 0; i < numRuns; i++) {
       if (verify([h2.get_all('Test' + i)], ['test of port ' + i]) == false) {
         flag = false;
       }
@@ -223,21 +218,21 @@ function test_high_speed_messages_oneway() {
     }
   });
   setTimeout(() => {
-    for (let i = 0; i < num_runs; i++) {
+    for (let i = 0; i < numRuns; i++) {
       h1.write_all('Test' + i, 'test of port ' + i);
     }
     h1.write_all('finally', 'true');
   }, DELAY);
 }
 
-function test_high_speed_messages_bidirectional() {
+function testBidirectionalHighspeedMessages() {
   const h1 = new Hub(8092);
   const h2 = new Hub(8093);
   h1.connect('Test', '127.0.0.1', h2.port);
-  const num_runs = 1000;
+  const numRuns = 1000;
   h2.on('finally', (data) => {
     let flag = true;
-    for (let i = 0; i < num_runs; i++) {
+    for (let i = 0; i < numRuns; i++) {
       if (
         verify([h1.get_all('Test' + i)], ['test of port ' + i]) == false ||
         verify([h2.get_all('Test' + i)], ['test of port ' + i]) == false
@@ -254,11 +249,11 @@ function test_high_speed_messages_bidirectional() {
     }
   });
   setTimeout(() => {
-    for (let i = 0; i < num_runs; i++) {
+    for (let i = 0; i < numRuns; i++) {
       h1.write_all('Test' + i, 'test of port ' + i);
     }
     setTimeout(() => {
-      for (let i = 0; i < num_runs; i++) {
+      for (let i = 0; i < numRuns; i++) {
         h2.write_all('Test' + i, 'test of port ' + i);
       }
       h1.write_all('finally', 'true');
@@ -266,14 +261,14 @@ function test_high_speed_messages_bidirectional() {
   }, DELAY);
 }
 
-function test_high_throughput_messages_oneway() {
+function testOnewayHighthroughputMessages() {
   const h1 = new Hub(8094);
   const h2 = new Hub(8095);
   h1.connect('Test', '127.0.0.1', h2.port);
-  const num_runs = 5000;
+  const numRuns = 5000;
   h2.on('finally', (data) => {
     let flag = true;
-    for (let i = 0; i < num_runs; i++) {
+    for (let i = 0; i < numRuns; i++) {
       if (verify([h2.get_all('Test' + i)], [text]) == false) {
         flag = false;
         console.log(i);
@@ -288,21 +283,21 @@ function test_high_throughput_messages_oneway() {
     }
   });
   setTimeout(() => {
-    for (let i = 0; i < num_runs; i++) {
+    for (let i = 0; i < numRuns; i++) {
       h1.write_all('Test' + i, text);
     }
     h1.write_all('finally', 'true');
   }, DELAY);
 }
 
-function test_high_throughput_messages_bidirectional() {
+function testBidirectionalHighthroughputMessages() {
   const h1 = new Hub(8096);
   const h2 = new Hub(8097);
   h1.connect('Test', '127.0.0.1', h2.port);
-  const num_runs = 50;
+  const numRuns = 50;
   h2.on('finally', (data) => {
     let flag = true;
-    for (let i = 0; i < num_runs; i++) {
+    for (let i = 0; i < numRuns; i++) {
       if (verify([h2.get_all('Test' + i)], [text]) == false) {
         flag = false;
         console.log(i);
@@ -317,11 +312,11 @@ function test_high_throughput_messages_bidirectional() {
     }
   });
   setTimeout(() => {
-    for (let i = 0; i < num_runs; i++) {
+    for (let i = 0; i < numRuns; i++) {
       h1.write_all('Test' + i, text);
     }
     setTimeout(() => {
-      for (let i = 0; i < num_runs; i++) {
+      for (let i = 0; i < numRuns; i++) {
         h2.write_all('Test' + i, text);
       }
       h1.write_all('finally', 'true');
@@ -331,15 +326,15 @@ function test_high_throughput_messages_bidirectional() {
 
 function main() {
   const routines = [
-    test_Hub_transport_setup,
-    test_transport_setup,
-    test_empty_messages,
-    test_oneway_messages,
-    test_bidirectional_messages,
-    test_high_speed_messages_oneway,
-    test_high_speed_messages_bidirectional,
-    test_high_throughput_messages_oneway,
-    test_high_throughput_messages_bidirectional,
+    testHubTransportSetup,
+    testTransportSetup,
+    testEmptyMessages,
+    testOnewayMessages,
+    testBidirectionalMessages,
+    testOnewayHighspeedMessages,
+    testBidirectionalHighspeedMessages,
+    testOnewayHighthroughputMessages,
+    testBidirectionalHighthroughputMessages,
   ];
   for (let i = 0; i < routines.length; i++) {
     routines[i]();

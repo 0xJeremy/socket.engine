@@ -2,7 +2,7 @@
 
 const EventEmitter = require('events').EventEmitter;
 const inherits = require('util').inherits;
-const {decomeImg} = require('./common');
+const net = require('net');
 
 // ///////////////
 // / CONSTANTS ///
@@ -14,8 +14,6 @@ const {
   IMAGE,
   TYPE,
   DATA,
-  FAMILY,
-  PORT,
   TIMEOUT,
   MAXSIZE,
   STATUS,
@@ -33,8 +31,6 @@ const {
 
 function Transport(name, timeout = TIMEOUT, maxSize = MAXSIZE) {
   EventEmitter.call(this);
-  this.net = require('net');
-
   this.name = name;
   this.socket = null;
   this.addr = null;
@@ -84,7 +80,6 @@ function Transport(name, timeout = TIMEOUT, maxSize = MAXSIZE) {
 
             this.emit(msg[TYPE], msg[DATA]);
             this.emit('data', msg);
-            this.__reset();
           } catch (err) {}
         }
       }
@@ -121,13 +116,6 @@ function Transport(name, timeout = TIMEOUT, maxSize = MAXSIZE) {
     this.socket.destroy();
   };
 
-  this.__reset = function() {
-    // this.msgBuffer = '';
-    // this.lastData = new Date().getTime();
-    // this.write(ACK, 'True');
-    const op = null;
-  };
-
   // ///////////////
   // / INTERFACE ///
   // ///////////////
@@ -136,7 +124,7 @@ function Transport(name, timeout = TIMEOUT, maxSize = MAXSIZE) {
     this.name = name;
     this.addr = addr;
     this.port = port;
-    this.socket = new this.net.Socket();
+    this.socket = new net.Socket();
     while (true) {
       try {
         this.socket.connect(this.port, this.addr, () => {

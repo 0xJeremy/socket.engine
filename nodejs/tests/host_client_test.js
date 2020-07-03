@@ -1,8 +1,8 @@
 'use strict';
 
 const assertion = require('assert');
-const host = require('../index').host;
-const client = require('../index').client;
+const Host = require('../index').Host;
+const Client = require('../index').Client;
 
 const DEBUG = false;
 const DELAY = 1000;
@@ -26,8 +26,8 @@ function failure(text) {
 }
 
 function initialize(port = 8080) {
-  const h = new host('127.0.0.1', port);
-  const c = new client('127.0.0.1', port);
+  const h = new Host('127.0.0.1', port);
+  const c = new Client('127.0.0.1', port);
   report('Sockets initialized');
   h.start();
   c.start();
@@ -53,6 +53,8 @@ function verify(a1, a2) {
   return true;
 }
 
+/* eslint-disable max-len, no-multi-str */
+
 const text =
   'Consulted he eagerness unfeeling deficient existence of. Calling nothing end fertile for venture way boy. Esteem spirit temper too say adieus who direct esteem. It esteems luckily mr or picture placing drawing no. Apartments frequently or motionless on reasonable projecting expression. Way mrs end gave tall walk fact bed. \
 Left till here away at to whom past. Feelings laughing at no wondered repeated provided finished. It acceptance thoroughly my advantages everything as. Are projecting inquietude affronting preference saw who. Marry of am do avoid ample as. Old disposal followed she ignorant desirous two has. Called played entire roused though for one too. He into walk roof made tall cold he. Feelings way likewise addition wandered contempt bed indulged. \
@@ -61,16 +63,18 @@ Death weeks early had their and folly timed put. Hearted forbade on an village y
 Yet remarkably appearance get him his projection. Diverted endeavor bed peculiar men the not desirous. Acuteness abilities ask can offending furnished fulfilled sex. Warrant fifteen exposed ye at mistake. Blush since so in noisy still built up an again. As young ye hopes no he place means. Partiality diminution gay yet entreaties admiration. In mr it he mention perhaps attempt pointed suppose. Unknown ye chamber of warrant of norland arrived. \
 Luckily friends do ashamed to do suppose. Tried meant mr smile so. Exquisite behaviour as to middleton perfectly. Chicken no wishing waiting am. Say concerns dwelling graceful six humoured. Whether mr up savings talking an. Active mutual nor father mother exeter change six did all. ';
 
+/* eslint-enable */
+
 // ////////////////
 // / UNIT TESTS ///
 // ////////////////
 
-function test_connection_BOTH() {
-  const h = new host('127.0.0.1');
+function testConnectionBoth() {
+  const h = new Host('127.0.0.1');
   assert(h.opened, false);
   h.start();
   assert(h.opened, true);
-  const c = new client('127.0.0.1');
+  const c = new Client('127.0.0.1');
   assert(c.opened, false);
   c.start();
   assert(c.opened, true);
@@ -82,7 +86,7 @@ function test_connection_BOTH() {
   success('Connection test Passed');
 }
 
-function test_connection_msg_CALLBACK() {
+function testConnectionMessageCallback() {
   const sockets = initialize(8081);
   const h = sockets[0];
   const c = sockets[1];
@@ -102,28 +106,7 @@ function test_connection_msg_CALLBACK() {
   report('Wrote connection');
 }
 
-// THIS TEST CURRENTLY FAILS
-// MORE DEVELOPMENT NEEDED HERE
-// function test_async_ordering() {
-// 	var c = new client('127.0.0.1');
-// 	c.start()
-// 	var h = new host('127.0.0.1');
-// 	h.start()
-// 	h.on('connection', (data) => {
-// 		assert(data, [true]);
-// 		assert(h.sockets.length, 1);
-// 		assert(h.clients.length, 1);
-// 		report('Connections tested');
-// 		h.close();
-// 		c.close();
-// 		success("Async Ordering test Passed");
-// 	});
-// 	assert(h.clients.length, 0);
-// 	assert(h.sockets.length, 0);
-// 	c.write('connection', true);
-// }
-
-function test_empty_message() {
+function testEmptyMessage() {
   const sockets = initialize(8082);
   const h = sockets[0];
   const c = sockets[1];
@@ -136,7 +119,7 @@ function test_empty_message() {
   success('Empty messages test Passed');
 }
 
-function test_host_messages() {
+function testHostMessage() {
   const sockets = initialize(8083);
   const h = sockets[0];
   const c = sockets[1];
@@ -168,7 +151,7 @@ function test_host_messages() {
   report('Wrote test messages');
 }
 
-function test_client_messages() {
+function testClientMessage() {
   const sockets = initialize(8084);
   const h = sockets[0];
   const c = sockets[1];
@@ -203,7 +186,7 @@ function test_client_messages() {
   }, DELAY);
 }
 
-function test_bidirectional_messages() {
+function testBidirectionalMessage() {
   const sockets = initialize(8085);
   const h = sockets[0];
   const c = sockets[1];
@@ -211,8 +194,8 @@ function test_bidirectional_messages() {
   assert(c.get('Test2'), undefined);
   assert(h.get_ALL('Test'), []);
   assert(h.get_ALL('Test2'), []);
-  const num_tests = 3;
-  let tests_run = 0;
+  const numTests = 3;
+  let testsRun = 0;
   const finish = () => {
     h.close();
     c.close();
@@ -221,37 +204,37 @@ function test_bidirectional_messages() {
   c.on('Test', (data) => {
     assert(c.get('Test'), 'test of port 1');
     report('Client test passed');
-    if (tests_run == num_tests) {
+    if (testsRun == numTests) {
       finish();
     } else {
-      tests_run += 1;
+      testsRun += 1;
     }
   });
   c.on('Test2', (data) => {
     assert(c.get('Test2'), 'test of port 2');
     report('Client test2 passed');
-    if (tests_run == num_tests) {
+    if (testsRun == numTests) {
       finish();
     } else {
-      tests_run += 1;
+      testsRun += 1;
     }
   });
   h.on('Test', (data) => {
     assert(h.get_ALL('Test'), ['test of port 1']);
     report('Host test passed');
-    if (tests_run == num_tests) {
+    if (testsRun == numTests) {
       finish();
     } else {
-      tests_run += 1;
+      testsRun += 1;
     }
   });
   h.on('Test2', (data) => {
     assert(h.get_ALL('Test2'), ['test of port 2']);
     report('Host test2 passed');
-    if (tests_run == num_tests) {
+    if (testsRun == numTests) {
       finish();
     } else {
-      tests_run += 1;
+      testsRun += 1;
     }
   });
   c.write('connection', true);
@@ -263,15 +246,15 @@ function test_bidirectional_messages() {
   }, DELAY);
 }
 
-function test_high_speed_client() {
+function testHighSpeedClient() {
   const sockets = initialize(8086);
   const h = sockets[0];
   const c = sockets[1];
   c.write('connected', true);
-  const num_runs = 1000;
+  const numRuns = 1000;
   h.on('finally', (data) => {
     let flag = true;
-    for (let i = 0; i < num_runs; i++) {
+    for (let i = 0; i < numRuns; i++) {
       if (verify(h.get_ALL('Test' + i), ['test of port ' + i]) == false) {
         flag = false;
       }
@@ -284,21 +267,21 @@ function test_high_speed_client() {
       failure('High Speed Client -> Host Failed');
     }
   });
-  for (let i = 0; i < num_runs; i++) {
+  for (let i = 0; i < numRuns; i++) {
     c.write('Test' + i, 'test of port ' + i);
   }
   c.write('finally', true);
 }
 
-function test_high_speed_host() {
+function testHighSpeedHost() {
   const sockets = initialize(8087);
   const h = sockets[0];
   const c = sockets[1];
   c.write('connected', true);
-  const num_runs = 1000;
+  const numRuns = 1000;
   c.on('finally', (data) => {
     let flag = true;
-    for (let i = 0; i < num_runs; i++) {
+    for (let i = 0; i < numRuns; i++) {
       if (verify([c.get('Test' + i)], ['test of port ' + i]) == false) {
         flag = false;
       }
@@ -312,22 +295,22 @@ function test_high_speed_host() {
     }
   });
   setTimeout(() => {
-    for (let i = 0; i < num_runs; i++) {
+    for (let i = 0; i < numRuns; i++) {
       h.write_ALL('Test' + i, 'test of port ' + i);
     }
     h.write_ALL('finally', true);
   }, DELAY);
 }
 
-function test_high_throughput_client() {
+function testHighThroughputClient() {
   const sockets = initialize(8088);
   const h = sockets[0];
   const c = sockets[1];
   c.write('connected', true);
-  const num_runs = 2000;
+  const numRuns = 2000;
   h.on('finally', (data) => {
     let flag = true;
-    for (let i = 0; i < num_runs; i++) {
+    for (let i = 0; i < numRuns; i++) {
       if (verify(h.get_ALL('Test' + i), [text]) == false) {
         flag = false;
       }
@@ -340,21 +323,21 @@ function test_high_throughput_client() {
       failure('High Throughput Client -> Host Failed');
     }
   });
-  for (let i = 0; i < num_runs; i++) {
+  for (let i = 0; i < numRuns; i++) {
     c.write('Test' + i, text);
   }
   c.write('finally', true);
 }
 
-function test_high_throughput_host() {
+function testHighThroughputHost() {
   const sockets = initialize(8089);
   const h = sockets[0];
   const c = sockets[1];
   c.write('connected', true);
-  const num_runs = 2000;
+  const numRuns = 2000;
   c.on('finally', (data) => {
     let flag = true;
-    for (let i = 0; i < num_runs; i++) {
+    for (let i = 0; i < numRuns; i++) {
       if (verify([c.get('Test' + i)], [text]) == false) {
         flag = false;
       }
@@ -368,77 +351,25 @@ function test_high_throughput_host() {
     }
   });
   setTimeout(() => {
-    for (let i = 0; i < num_runs; i++) {
+    for (let i = 0; i < numRuns; i++) {
       h.write_ALL('Test' + i, text);
     }
     h.write_ALL('finally', true);
   }, DELAY);
 }
 
-// STRESS TEST NOT CURRENTLY WORKING
-// Expected cause is that Node.js / JavaScript is too slow
-// to handle the high volume traffic.
-// function stress_test(name, stress=5, messages=1000) {
-// 	var h = new host('127.0.0.1', 8090).start();
-// 	var c = []
-// 	for(var i = 0; i < stress; i++) {
-// 		var c_tmp = new client('127.0.0.1', 8090).start();
-// 		c_tmp.write("connected", true);
-// 		c.push(c_tmp);
-// 	}
-// 	report("All sockets connected to stress test");
-// 	h.on("finally", (data) => {
-// 		var flag = true;
-// 		var tmp = []
-// 		for(var i = 0; i < c.length; i++) { tmp.push(text); }
-
-// 		for(var i = 0; i < messages; i++) {
-// 			for(var j = 0; j < c.length; j++) {
-// 				if(verify([c[j].get("Test"+i)], [text]) == false) {
-// 					console.log("Failed host", i, j)
-// 					flag = false;
-// 				}
-// 			}
-// 			if(verify(h.get_ALL("Test"+i), tmp) == false) {
-// 				console.log("Failed host", i)
-// 				flag = false;
-// 			}
-// 		}
-
-// 		h.close();
-// 		for(var i = 0; i < c.length; i++) { c[i].close(); }
-// 		if(flag) {
-// 			success(name + " Passed");
-// 		} else {
-// 			failure(name + " Failed");
-// 		}
-// 	});
-// 	for(var i = 0; i < c.length; i++) {
-// 		var c_tmp = c[i];
-// 		for(var j = 0; j < messages; j++) {
-// 			c_tmp.write("Test"+j, text)
-// 		}
-// 	}
-// 	setTimeout(() => {
-// 		for(var i = 0; i < messages; i++) {
-// 			h.write_ALL("Test"+i, text);
-// 		}
-// 		c[0].write("finally", true);
-// 	}, DELAY)
-// }
-
 function main() {
   const routines = [
-    test_connection_BOTH,
-    test_connection_msg_CALLBACK,
-    test_empty_message,
-    test_host_messages,
-    test_client_messages,
-    test_bidirectional_messages,
-    test_high_speed_client,
-    test_high_speed_host,
-    test_high_throughput_client,
-    test_high_throughput_host,
+    testConnectionBoth,
+    testConnectionMessageCallback,
+    testEmptyMessage,
+    testHostMessage,
+    testClientMessage,
+    testBidirectionalMessage,
+    testHighSpeedClient,
+    testHighSpeedHost,
+    testHighThroughputClient,
+    testHighThroughputHost,
   ];
   for (let i = 0; i < routines.length; i++) {
     routines[i]();

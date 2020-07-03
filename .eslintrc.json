@@ -11,5 +11,7 @@
         "sourceType": "module"
     },
     "rules": {
+        "require-jsdoc": 0,
+        "no-invalid-this": 0
     }
 }

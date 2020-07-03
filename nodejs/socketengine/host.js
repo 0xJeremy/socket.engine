@@ -8,8 +8,6 @@ const ip = require('ip');
 // / CONSTANTS ///
 // ///////////////
 
-const STOP = 'STOP';
-const ACK = '__ack';
 const IMAGE = 'image';
 const NEWLINE = '\n';
 const base64 = new RegExp(
@@ -59,7 +57,6 @@ function _connection(socket, address, timeout, maxSize) {
           } else {
             this.emit(msg['type'], msg['data']);
           }
-          this._reset();
           this.emit('data', msg);
         } catch (err) {}
       }
@@ -72,13 +69,6 @@ function _connection(socket, address, timeout, maxSize) {
   this.socket.on('error', (err) => {
     this.emit('warning', err);
   });
-
-  this._reset = function() {
-    // this.msgBuffer = '';
-    // this.lastData = new Date().getTime();
-    // this.write(ACK, 'True');
-    const op = null;
-  };
 
   // /////////////
   // / METHODS ///
@@ -120,7 +110,7 @@ inherits(_connection, EventEmitter);
 // / HOST CLASS ///
 // ////////////////
 
-function host(addr = ADDR, port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
+function Host(addr = ADDR, port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
   EventEmitter.call(this);
   this.net = require('net');
 
@@ -212,6 +202,6 @@ function host(addr = ADDR, port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
   };
 }
 
-inherits(host, EventEmitter);
+inherits(Host, EventEmitter);
 
-module.exports = exports = host;
+module.exports = exports = Host;
