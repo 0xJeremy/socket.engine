@@ -16,10 +16,10 @@ from .constants import ADDR, PORT, TIMEOUT, SIZE, OPEN
 ### CONNECTION CLASS ###
 ########################
 
-
+# pylint: disable=consider-using-enumerate
 class _connection:
-    def __init__(self, socket, address, timeout, size):
-        self.socket = socket
+    def __init__(self, socketConnection, address, timeout, size):
+        self.socket = socketConnection
         self.address = address
         self.canWrite = True
         self.channels = {}
@@ -35,7 +35,7 @@ class _connection:
         return self
 
     def run(self):
-        tmp = ""
+        tmp = ''
         while True:
             if self.stopped:
                 self.socket.close()
@@ -48,17 +48,17 @@ class _connection:
             except OSError:
                 self.close()
 
-            if tmp != "" and tmp != "\n":
-                data = tmp.split("\n")
+            if tmp not in ('', '\n'):
+                data = tmp.split('\n')
                 for i in range(len(data)):
                     try:
                         msg = jsonToDict(data[i])
-                        self.channels[msg["type"]] = msg["data"]
-                        if msg["type"] == ACK:
+                        self.channels[msg['type']] = msg['data']
+                        if msg['type'] == ACK:
                             self.canWrite = True
-                        tmp = ""
+                        tmp = ''
                     except JSONDecodeError:
-                        tmp = "".join(data[i:])
+                        tmp = ''.join(data[i:])
                         break
 
     def get(self, channel):
@@ -72,7 +72,7 @@ class _connection:
             self.write(channel, data)
 
     def write(self, channel, data):
-        msg = {"type": channel, "data": data}
+        msg = {'type': channel, 'data': data}
         self.socket.sendall(dictToJson(msg).encode() + NEWLINE)
 
     def writeImgLock(self, data):
@@ -93,8 +93,8 @@ class _connection:
 ### HOST CLASS ###
 ##################
 
-
-class host:
+# pylint: disable=redefined-builtin, unused-variable
+class Host:
     def __init__(self, addr=ADDR, port=PORT, timeout=TIMEOUT, size=SIZE, open=OPEN):
         self.addr = addr
         self.port = port
@@ -107,19 +107,18 @@ class host:
         if open:
             self.open()
 
-    def set_timeout(self, time):
+    def setTimeout(self, time):
         self.timeout = time
 
     def open(self):
         while True:
             try:
                 self.socket = generateSocket(self.timeout)
-                self.socket.bind(("", self.port))
+                self.socket.bind(('', self.port))
                 self.socket.listen()
                 break
-            except OSError as e:
-                raise RuntimeError("Socket address in use: {}".format(e))
-                return
+            except OSError as error:
+                raise RuntimeError('Socket address in use: {}'.format(error))
             except socket.timeout:
                 continue
         self.opened = True
@@ -129,26 +128,26 @@ class host:
         return self
 
     def run(self):
-        tmp = ""
+        tmp = ''
         while True:
             if self.stopped:
-                for c in self.clients:
-                    c.close()
+                for client in self.clients:
+                    client.close()
                 self.socket.close()
                 return
 
             try:
-                c, addr = self.socket.accept()
+                conn, addr = self.socket.accept()
                 if addr not in self.connections:
                     self.connections.append(addr)
-                    self.clients.append(_connection(c, addr, self.timeout, self.size))
+                    self.clients.append(_connection(conn, addr, self.timeout, self.size))
             except socket.timeout:
                 continue
 
-    def get_ALL(self, channel):
+    def getAll(self, channel):
         data = []
-        for c in self.clients:
-            tmp = c.get(channel)
+        for client in self.clients:
+            tmp = client.get(channel)
             if tmp is not None:
                 data.append(tmp)
         return data
@@ -156,28 +155,28 @@ class host:
     def getClients(self):
         return self.clients
 
-    def writeLock_ALL(self, channel, data):
-        for c in self.clients:
-            self.writeLock(channel, data)
+    def writeAllLock(self, channel, data):
+        for client in self.clients:
+            client.writeLock(channel, data)
         return self
 
-    def write_ALL(self, channel, data):
-        for c in self.clients:
-            c.write(channel, data)
+    def writeAll(self, channel, data):
+        for client in self.clients:
+            client.write(channel, data)
         return self
 
-    def writeImgLock_ALL(self, data):
-        for c in self.clients:
-            c.writeImg(data)
+    def writeImageLockAll(self, data):
+        for client in self.clients:
+            client.writeImg(data)
         return self
 
-    def writeImg_ALL(self, data):
-        for c in self.clients:
-            c.writeImg(data)
+    def writeImageAll(self, data):
+        for client in self.clients:
+            client.writeImg(data)
         return self
 
     def close(self):
         self.opened = False
-        for c in self.clients:
-            c.close()
+        for client in self.clients:
+            client.close()
         self.stopped = True

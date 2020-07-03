@@ -11,9 +11,8 @@ from .common import encodeImg, decodeImg, generateSocket
 
 from .constants import ACK, NEWLINE, IMG_MSG_S, IMG_MSG_E
 from .constants import IMAGE, TYPE, DATA
-from .constants import PORT, TIMEOUT, SIZE
+from .constants import TIMEOUT, SIZE
 from .constants import STATUS, CLOSING, NAME_CONN
-from .constants import MAX_RETRIES
 
 ###############################################################
 
@@ -21,7 +20,7 @@ from .constants import MAX_RETRIES
 ### TRANSPORT CLASS ###
 #######################
 
-
+# pylint: disable=invalid-name, consider-using-enumerate
 class Transport:
     TYPE_LOCAL = 1
     TYPE_REMOTE = 2
@@ -39,8 +38,8 @@ class Transport:
         self.type = None
         self.lock = Lock()
 
-    def receive(self, socket, addr, port):
-        self.socket = socket
+    def receive(self, socketConnection, addr, port):
+        self.socket = socketConnection
         self.addr = addr
         self.port = port
         self.socket.settimeout(self.timeout)
@@ -50,8 +49,7 @@ class Transport:
 
     def __start(self):
         if self.socket is None:
-            raise RuntimeError("Connection started without socket")
-            return
+            raise RuntimeError('Connection started without socket')
         Thread(target=self.__run, args=()).start()
         return self
 
@@ -69,8 +67,8 @@ class Transport:
             except OSError:
                 self.close()
 
-            if tmp != "":
-                data = tmp.split("\n")
+            if tmp != '':
+                data = tmp.split('\n')
                 for i in range(len(data)):
                     try:
                         msg = jsonToDict(data[i])
@@ -82,9 +80,9 @@ class Transport:
                         self.channels[IMAGE] = decodeImg(msg[DATA])
                     else:
                         self.channels[msg[TYPE]] = msg[DATA]
-                    data[i] = ""
+                    data[i] = ''
 
-                tmp = "".join(data)
+                tmp = ''.join(data)
 
     def __cascade(self, mtype, mdata):
         if mtype == ACK:
@@ -118,11 +116,10 @@ class Transport:
                 continue
             except socket.gaierror:
                 continue
-            except OSError as e:
-                if type(e) == ConnectionRefusedError:
+            except OSError as error:
+                if isinstance(error, ConnectionRefusedError):
                     continue
-                raise RuntimeError("Socket address in use: {}".format(e))
-                return
+                raise RuntimeError('Socket address in use: {}'.format(error))
         self.type = Transport.TYPE_LOCAL
         self.opened = True
         self.write(NAME_CONN, self.name)
@@ -142,7 +139,7 @@ class Transport:
     def write(self, channel, data):
         if self.opened:
             with self.lock:
-                msg = {TYPE: channel.replace("\n", ""), DATA: data.replace("\n", "")}
+                msg = {TYPE: channel.replace('\n', ''), DATA: data.replace('\n', '')}
                 self.socket.sendall(dictToJson(msg).encode() + NEWLINE)
 
     def writeImg(self, data):

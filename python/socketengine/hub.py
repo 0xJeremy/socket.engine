@@ -1,5 +1,5 @@
 import socket
-from threading import Thread, Lock
+from threading import Thread
 from .common import generateSocket
 from .transport import Transport
 
@@ -16,7 +16,7 @@ from .constants import MAX_RETRIES
 ### HUB CLASS ###
 #################
 
-
+# pylint: disable=unused-variable, invalid-name
 class Hub:
     def __init__(self, port=None, timeout=TIMEOUT, size=SIZE):
         self.socket = None
@@ -38,10 +38,9 @@ class Hub:
                 self.socket.bind(("", self.port))
                 self.socket.listen()
                 break
-            except OSError as e:
+            except OSError as error:
                 if self.userDefinedPort or self.port > (PORT + MAX_RETRIES):
-                    raise RuntimeError("Socket address in use: {}".format(e))
-                    return
+                    raise RuntimeError("Socket address in use: {}".format(error))
                 self.port += 1
             except socket.timeout:
                 continue
@@ -57,26 +56,26 @@ class Hub:
         tmp = ""
         while True:
             if self.stopped:
-                for t in self.transports:
-                    t.close()
+                for transport in self.transports:
+                    transport.close()
                 self.socket.close()
                 return
 
             try:
-                s, addr = self.socket.accept()
+                conn, addr = self.socket.accept()
                 if addr not in self.transportAddresses:
                     self.transportAddresses.append(addr)
                     addr, port = addr
-                    t = Transport(None, self.timeout, self.size)
-                    t.receive(s, addr, port)
-                    self.transports.append(t)
+                    transport = Transport(None, self.timeout, self.size)
+                    transport.receive(conn, addr, port)
+                    self.transports.append(transport)
             except socket.timeout:
                 continue
 
     def connect(self, name, addr, port):
-        t = Transport(self.timeout, self.size)
-        t.connect(name, addr, port)
-        self.transports.append(t)
+        transport = Transport(self.timeout, self.size)
+        transport.connect(name, addr, port)
+        self.transports.append(transport)
         return self
 
     def close(self):
@@ -90,37 +89,37 @@ class Hub:
     ### INTERFACE, GETTERS ###
     ##########################
 
-    def get_all(self, channel):
+    def getAll(self, channel):
         data = []
-        for t in self.transports:
-            tmp = t.get(channel)
+        for transport in self.transports:
+            tmp = transport.get(channel)
             if tmp is not None:
                 data.append(tmp)
         return data
 
-    def get_by_name(self, name, channel):
+    def getByName(self, name, channel):
         data = []
-        for t in self.transports:
-            if t.name == name:
-                tmp = t.get(channel)
+        for transport in self.transports:
+            if transport.name == name:
+                tmp = transport.get(channel)
                 if tmp is not None:
                     data.append(tmp)
         return data
 
-    def get_local(self, channel):
+    def getLocal(self, channel):
         data = []
-        for t in self.transports:
-            if t.type == transport.TYPE_LOCAL:
-                tmp = t.get(channel)
+        for transport in self.transports:
+            if transport.type == transport.TYPE_LOCAL:
+                tmp = transport.get(channel)
                 if tmp is not None:
                     data.append(tmp)
         return data
 
-    def get_remote(self, channel):
+    def getRemote(self, channel):
         data = []
-        for t in self.transports:
-            if t.type == transport.TYPE_REMOTE:
-                tmp = t.get(channel)
+        for transport in self.transports:
+            if transport.type == transport.TYPE_REMOTE:
+                tmp = transport.get(channel)
                 if tmp is not None:
                     data.append(tmp)
         return data
@@ -129,48 +128,48 @@ class Hub:
     ### INTERFACE, WRITERS ###
     ##########################
 
-    def write_all(self, channel, data):
-        for t in self.transports:
-            t.write(channel, data)
+    def writeAll(self, channel, data):
+        for transport in self.transports:
+            transport.write(channel, data)
         return self
 
-    def write_to_name(self, name, channel, data):
-        for t in self.transports:
-            if t.name == name:
-                t.write(channel, data)
+    def writeToName(self, name, channel, data):
+        for transport in self.transports:
+            if transport.name == name:
+                transport.write(channel, data)
         return self
 
-    def write_to_local(self, channel, data):
-        for t in self.transports:
-            if t.type == transport.TYPE_REMOTE:
-                t.write(channel, data)
+    def writeToLocal(self, channel, data):
+        for transport in self.transports:
+            if transport.type == transport.TYPE_REMOTE:
+                transport.write(channel, data)
         return self
 
-    def write_to_remote(self, channel, data):
-        for t in self.transports:
-            if t.type == transport.TYPE_LOCAL:
-                t.write(channel, data)
+    def writeToRemote(self, channel, data):
+        for transport in self.transports:
+            if transport.type == transport.TYPE_LOCAL:
+                transport.write(channel, data)
         return self
 
-    def write_image_all(self, data):
-        for t in self.transports:
-            t.writeImg(data)
+    def writeImageAll(self, data):
+        for transport in self.transports:
+            transport.writeImg(data)
         return self
 
-    def write_image_to_name(self, name, data):
-        for t in self.transports:
-            if t.name == name:
-                t.writeImg(data)
+    def writeImageToName(self, name, data):
+        for transport in self.transports:
+            if transport.name == name:
+                transport.writeImg(data)
         return self
 
-    def write_image_to_local(self, data):
-        for t in self.transports:
-            if t.type == transport.TYPE_REMOTE:
-                t.writeImg(data)
+    def writeImageToLocal(self, data):
+        for transport in self.transports:
+            if transport.type == transport.TYPE_REMOTE:
+                transport.writeImg(data)
         return self
 
-    def write_image_to_remote(self, data):
-        for t in self.transports:
-            if t.type == transport.TYPE_LOCAL:
-                t.writeImg(data)
+    def writeImageToRemote(self, data):
+        for transport in self.transports:
+            if transport.type == transport.TYPE_LOCAL:
+                transport.writeImg(data)
         return self

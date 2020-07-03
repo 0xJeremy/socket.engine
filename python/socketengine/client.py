@@ -16,8 +16,8 @@ from .constants import ADDR, PORT, TIMEOUT, SIZE, OPEN
 ### CLIENT CLASS ###
 ####################
 
-
-class client:
+# pylint: disable=unused-variable, redefined-builtin
+class Client:
     def __init__(self, addr=ADDR, timeout=TIMEOUT, port=PORT, size=SIZE, open=OPEN):
         self.addr = addr
         self.port = port
@@ -31,7 +31,7 @@ class client:
         if open:
             self.open()
 
-    def set_timeout(self, time):
+    def setTimeout(self, time):
         self.timeout = time
 
     def open(self):
@@ -40,11 +40,10 @@ class client:
                 self.socket = generateSocket(self.timeout)
                 self.socket.connect((self.addr, self.port))
                 break
-            except OSError as e:
-                if type(e) is ConnectionRefusedError:
+            except OSError as error:
+                if isinstance(error, ConnectionRefusedError):
                     continue
-                raise RuntimeError("Socket address in use: {}".format(e))
-                return
+                raise RuntimeError('Socket address in use: {}'.format(error))
             except socket.timeout:
                 continue
         self.opened = True
@@ -54,7 +53,7 @@ class client:
         return self
 
     def run(self):
-        tmp = ""
+        tmp = ''
         while True:
             if self.stopped:
                 self.socket.close()
@@ -67,17 +66,18 @@ class client:
             except OSError:
                 self.close()
 
-            if tmp != "" and tmp != "\n":
-                data = tmp.split("\n")
+            if tmp not in ('', '\\n'):
+                data = tmp.split('\n')
+                # pylint: disable=consider-using-enumerate
                 for i in range(len(data)):
                     try:
                         msg = jsonToDict(data[i])
-                        self.channels[msg["type"]] = msg["data"]
-                        if msg["type"] == ACK:
+                        self.channels[msg['type']] = msg['data']
+                        if msg['type'] == ACK:
                             self.canWrite = True
-                        tmp = ""
+                        tmp = ''
                     except JSONDecodeError:
-                        tmp = "".join(data[i:])
+                        tmp = ''.join(data[i:])
                         break
 
     def get(self, channel):
@@ -92,7 +92,7 @@ class client:
         return self
 
     def write(self, channel, data):
-        msg = {"type": channel, "data": data}
+        msg = {'type': channel, 'data': data}
         self.socket.sendall(dictToJson(msg).encode() + NEWLINE)
         return self
 

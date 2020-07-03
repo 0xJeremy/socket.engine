@@ -13,8 +13,5 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/0xJeremy/socket.engine",
     packages=setuptools.find_packages(),
-    classifiers=[
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
-    ],
+    classifiers=["Programming Language :: Python :: 3", "License :: OSI Approved :: MIT License",],
 )
