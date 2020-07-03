@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+# pylint: disable=wrong-import-position, no-member, global-statement
 import sys
 import os
 
@@ -7,10 +8,10 @@ PACKAGE_PARENT = ".."
 SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
 sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
 
-from socketengine import Client
-from socketengine import Host
 import time
 import argparse
+from socketengine import Client
+from socketengine import Host
 
 TIMEOUT = 0.5
 DELAY = 0.5
@@ -20,36 +21,40 @@ DEBUG = False
 ### HELPER FUNCTIONS ###
 ########################
 
+# pylint: disable=invalid-name
+
 
 def s(a=DELAY):
     time.sleep(a)
 
 
-def report(text):
+def report(message):
     global DEBUG
     if DEBUG:
-        print("\033[93m[{}]\033[0m".format(text))
+        print("\033[93m[{}]\033[0m".format(message))
 
 
-def success(text):
-    print("\033[32m[{}]\033[0m".format(text))
+def success(message):
+    print("\033[32m[{}]\033[0m".format(message))
     s(1)
 
 
 def initialize():
-    h = Host(timeout=TIMEOUT)
-    c = Client(timeout=TIMEOUT)
+    host = Host(timeout=TIMEOUT)
+    client = Client(timeout=TIMEOUT)
     report("Sockets initialized")
-    h.start()
-    c.start()
+    host.start()
+    client.start()
     report("Sockets started")
-    return h, c
+    return host, client
 
+
+# pylint: disable=line-too-long
 
 text = "Consulted he eagerness unfeeling deficient existence of. Calling nothing end fertile for venture way boy. Esteem spirit temper too say adieus who direct esteem. It esteems luckily mr or picture placing drawing no. Apartments frequently or motionless on reasonable projecting expression. Way mrs end gave tall walk fact bed. \
 Left till here away at to whom past. Feelings laughing at no wondered repeated provided finished. It acceptance thoroughly my advantages everything as. Are projecting inquietude affronting preference saw who. Marry of am do avoid ample as. Old disposal followed she ignorant desirous two has. Called played entire roused though for one too. He into walk roof made tall cold he. Feelings way likewise addition wandered contempt bed indulged. \
 Same an quit most an. Admitting an mr disposing sportsmen. Tried on cause no spoil arise plate. Longer ladies valley get esteem use led six. Middletons resolution advantages expression themselves partiality so me at. West none hope if sing oh sent tell is. \
-Death weeks early had their and folly timed put. Hearted forbade on an village ye in fifteen. Age attended betrayed her man raptures laughter. Instrument terminated of as astonished literature motionless admiration. The affection are determine how performed intention discourse but. On merits on so valley indeed assure of. Has add particular boisterous uncommonly are. Early wrong as so manor match. Him necessary shameless discovery consulted one but. \
+Death weeks early had their and folly timed put. Hearted forbade on an village ye in fifteen. Age attended betrayed her man raptures laughter. Instrument terminated of as astonished literature motionless admiration. The affection are determine how performed intention discourse but. On merits on so valley indeed assure of. Has add particular boisterous uncommonly are. Early wrong as so manor matchost. Him necessary shameless discovery consulted one but. \
 Yet remarkably appearance get him his projection. Diverted endeavor bed peculiar men the not desirous. Acuteness abilities ask can offending furnished fulfilled sex. Warrant fifteen exposed ye at mistake. Blush since so in noisy still built up an again. As young ye hopes no he place means. Partiality diminution gay yet entreaties admiration. In mr it he mention perhaps attempt pointed suppose. Unknown ye chamber of warrant of norland arrived. \
 Luckily friends do ashamed to do suppose. Tried meant mr smile so. Exquisite behaviour as to middleton perfectly. Chicken no wishing waiting am. Say concerns dwelling graceful six humoured. Whether mr up savings talking an. Active mutual nor father mother exeter change six did all. "
 
@@ -58,289 +63,290 @@ Luckily friends do ashamed to do suppose. Tried meant mr smile so. Exquisite beh
 ##################
 
 
-def test_connection_BOTH():
+def testConnectionBoth():
     start = time.time()
-    h = Host(timeout=TIMEOUT)
-    h.start()
-    c = Client(timeout=TIMEOUT)
-    c.start()
+    host = Host(timeout=TIMEOUT)
+    host.start()
+    client = Client(timeout=TIMEOUT)
+    client.start()
     report("Sockets opened and started")
-    assert h.opened
-    assert c.opened
+    assert host.opened
+    assert client.opened
     s(TIMEOUT)
-    assert len(h.getClients()) is 1
+    assert len(host.getClients()) == 1
     report("Open state verified")
-    c.close()
-    assert not c.opened and c.stopped
-    h.close()
+    client.close()
+    assert not client.opened and client.stopped
+    host.close()
     report("Closed state verified")
-    assert not h.opened and h.stopped
+    assert not host.opened and host.stopped
     success("Connection test Passed ({:.5f} sec)".format(time.time() - start))
 
 
-def test_async_ordering():
+def testAsyncOrdering():
     start = time.time()
-    h = Host(timeout=TIMEOUT, open=False)
-    c = Client(timeout=TIMEOUT, open=False)
-    assert not h.opened
-    h.open()
-    h.start()
-    assert h.opened
+    host = Host(timeout=TIMEOUT, open=False)
+    client = Client(timeout=TIMEOUT, open=False)
+    assert not host.opened
+    host.open()
+    host.start()
+    assert host.opened
     report("Host started")
-    c.open()
-    c.start()
-    assert c.opened
+    client.open()
+    client.start()
+    assert client.opened
     report("Client started")
-    h.close()
-    assert h.stopped
+    host.close()
+    assert host.stopped
     report("Host closed")
-    c.close()
-    assert c.stopped
+    client.close()
+    assert client.stopped
     report("Client closed")
     success("Async Ordering test Passed ({:.5f} sec)".format(time.time() - start))
 
 
-def test_empty_message():
+def testEmptyMessages():
     start = time.time()
-    h, c = initialize()
-    assert c.get("Test") is None
-    assert c.get("Test2") is None
-    assert h.getAll("Test") == []
-    assert h.getAll("Test2") == []
-    c.close()
-    h.close()
+    host, client = initialize()
+    assert client.get("Test") is None
+    assert client.get("Test2") is None
+    assert host.getAll("Test") == []
+    assert host.getAll("Test2") == []
+    client.close()
+    host.close()
     success("Empty messages test Passed ({:.5f} sec)".format(time.time() - start))
 
 
-def test_host_messages():
+def testHostMessages():
     start = time.time()
-    h, c = initialize()
-    assert h.getAll("Test") == []
-    assert h.getAll("Test2") == []
-    c.write("Test", "test of port 1")
+    host, client = initialize()
+    assert host.getAll("Test") == []
+    assert host.getAll("Test2") == []
+    client.write("Test", "test of port 1")
     s()
-    assert h.getAll("Test") == ["test of port 1"]
-    assert h.getAll("Test2") == []
-    c.write("Test2", "test of port 2")
+    assert host.getAll("Test") == ["test of port 1"]
+    assert host.getAll("Test2") == []
+    client.write("Test2", "test of port 2")
     s()
-    assert h.getAll("Test") == ["test of port 1"]
-    assert h.getAll("Test2") == ["test of port 2"]
-    assert c.get("Test") is None
-    assert c.get("Test2") is None
-    c.close()
-    h.close()
+    assert host.getAll("Test") == ["test of port 1"]
+    assert host.getAll("Test2") == ["test of port 2"]
+    assert client.get("Test") is None
+    assert client.get("Test2") is None
+    client.close()
+    host.close()
     success("Client -> Host Passed ({:.5f} sec)".format(time.time() - start))
 
 
-def test_client_messages():
+def testClientMessages():
     start = time.time()
-    h, c = initialize()
-    assert c.get("Test") is None
-    assert c.get("Test2") is None
-    c.write("connected", True)
-    assert c.get("Test") is None
-    assert c.get("Test2") is None
+    host, client = initialize()
+    assert client.get("Test") is None
+    assert client.get("Test2") is None
+    client.write("connected", True)
+    assert client.get("Test") is None
+    assert client.get("Test2") is None
     s()
-    h.writeAll("Test", "test of port 1")
+    host.writeAll("Test", "test of port 1")
     s()
-    assert c.get("Test") == "test of port 1"
-    assert c.get("Test2") is None
-    h.writeAll("Test2", "test of port 2")
+    assert client.get("Test") == "test of port 1"
+    assert client.get("Test2") is None
+    host.writeAll("Test2", "test of port 2")
     s()
-    assert c.get("Test") == "test of port 1"
-    assert c.get("Test2") == "test of port 2"
-    assert h.getAll("Test") == []
-    assert h.getAll("Test2") == []
-    h.close()
-    c.close()
+    assert client.get("Test") == "test of port 1"
+    assert client.get("Test2") == "test of port 2"
+    assert host.getAll("Test") == []
+    assert host.getAll("Test2") == []
+    host.close()
+    client.close()
     success("Host -> Client Passed ({:.5f} sec)".format(time.time() - start))
 
 
-def test_bidirectional_messages():
+def testBidirectionalMessages():
     start = time.time()
-    h, c = initialize()
-    assert c.get("Test") is None
-    assert c.get("Test2") is None
-    c.write("connected", True)
-    assert c.get("Test") is None
-    assert c.get("Test2") is None
+    host, client = initialize()
+    assert client.get("Test") is None
+    assert client.get("Test2") is None
+    client.write("connected", True)
+    assert client.get("Test") is None
+    assert client.get("Test2") is None
     s()
-    h.writeAll("Test", "test of port 1")
-    h.writeAll("Test2", "test of port 2")
-    c.write("Test", "test of port 1")
+    host.writeAll("Test", "test of port 1")
+    host.writeAll("Test2", "test of port 2")
+    client.write("Test", "test of port 1")
     s(0.1)
-    c.write("Test2", "test of port 2")
+    client.write("Test2", "test of port 2")
     s()
-    assert c.get("Test") == "test of port 1"
-    assert c.get("Test2") == "test of port 2"
-    assert h.getAll("Test") == ["test of port 1"]
-    assert h.getAll("Test2") == ["test of port 2"]
-    h.close()
-    c.close()
+    assert client.get("Test") == "test of port 1"
+    assert client.get("Test2") == "test of port 2"
+    assert host.getAll("Test") == ["test of port 1"]
+    assert host.getAll("Test2") == ["test of port 2"]
+    host.close()
+    client.close()
     success("Host <-> Client Passed ({:.5f} sec)".format(time.time() - start))
 
 
-def test_high_speed_host():
+def testHighSpeedHost():
     start = time.time()
-    h, c = initialize()
-    c.write("connected", True)
+    host, client = initialize()
+    client.write("connected", True)
     s()
     for i in range(10):
-        h.writeAll("Test{}".format(i), "test of port {}".format(i))
+        host.writeAll("Test{}".format(i), "test of port {}".format(i))
     s(0.1)
     for i in range(10):
-        assert c.get("Test{}".format(i)) == "test of port {}".format(i)
-    c.close()
-    h.close()
+        assert client.get("Test{}".format(i)) == "test of port {}".format(i)
+    client.close()
+    host.close()
     success("High Speed Host -> Client Passed ({:.5f} sec)".format(time.time() - start))
 
 
-def test_high_throughput_host():
+def testHighThroughputHost():
     start = time.time()
-    h, c = initialize()
-    c.write("connected", True)
+    host, client = initialize()
+    client.write("connected", True)
     s()
     for i in range(1000):
-        h.writeAll("Test{}".format(i), text)
+        host.writeAll("Test{}".format(i), text)
     s()
     for i in range(1000):
-        assert c.get("Test{}".format(i)) == text
-    c.close()
-    h.close()
+        assert client.get("Test{}".format(i)) == text
+    client.close()
+    host.close()
     success("High Throughput Host -> Client Passed ({:.5f} sec)".format(time.time() - start))
 
 
-def test_high_throughput_client():
+def testHighThroughputClient():
     start = time.time()
-    h, c = initialize()
-    c.write("connected", True)
+    host, client = initialize()
+    client.write("connected", True)
     s()
     for i in range(1000):
-        c.write("Test{}".format(i), text)
+        client.write("Test{}".format(i), text)
     s()
     for i in range(1000):
-        assert h.getAll("Test{}".format(i)) == [text]
-    c.close()
-    h.close()
+        assert host.getAll("Test{}".format(i)) == [text]
+    client.close()
+    host.close()
     success("High Throughput Client -> Host Passed ({:.5f} sec)".format(time.time() - start))
 
 
-def test_high_throughput_bidirectional():
+def testHighThroughputBidirectional():
     start = time.time()
-    h, c = initialize()
-    c.write("connected", True)
+    host, client = initialize()
+    client.write("connected", True)
     s()
     for i in range(1000):
-        c.write("Test{}".format(i), text)
-        h.writeAll("Test{}".format(i), text)
+        client.write("Test{}".format(i), text)
+        host.writeAll("Test{}".format(i), text)
     s()
     for i in range(1000):
-        assert h.getAll("Test{}".format(i)) == [text]
+        assert host.getAll("Test{}".format(i)) == [text]
     for i in range(1000):
-        assert c.get("Test{}".format(i)) == text
-    c.close()
-    h.close()
+        assert client.get("Test{}".format(i)) == text
+    client.close()
+    host.close()
     success("High Throughput Host <-> Client Passed ({:.5f} sec)".format(time.time() - start))
 
 
-def stress_test(stress=5, messages=1000):
-    h = Host(timeout=TIMEOUT)
-    h.start()
+def stressTest(stress=5, messages=1000):
+    host = Host(timeout=TIMEOUT)
+    host.start()
     clients = []
     for i in range(stress):
-        c = Client(timeout=TIMEOUT).start()
-        c.write("connected", True)
-        clients.append(c)
+        client = Client(timeout=TIMEOUT).start()
+        client.write("connected", True)
+        clients.append(client)
     report("All sockets connected")
     s()
     for i in range(messages):
-        for c in clients:
-            c.write("Test{}".format(i), text)
-        h.writeAll("Test{}".format(i), text)
+        for client in clients:
+            client.write("Test{}".format(i), text)
+        host.writeAll("Test{}".format(i), text)
     report("All data written")
     s()
     for i in range(messages):
-        assert h.getAll("Test{}".format(i)) == [text] * stress
+        assert host.getAll("Test{}".format(i)) == [text] * stress
     for i in range(messages):
-        for c in clients:
-            assert c.get("Test{}".format(i)) == text
+        for client in clients:
+            assert client.get("Test{}".format(i)) == text
     report("All data asserted")
-    for c in clients:
-        c.close()
-    h.close()
+    for client in clients:
+        client.close()
+    host.close()
 
 
-def stress_test_v1():
+def stressTestV1():
     start = time.time()
-    stress_test()
+    stressTest()
     success("Stress Test (v1) Passed ({:.5f} sec)".format(time.time() - start))
 
 
-def stress_test_v2():
+def stressTestV2():
     start = time.time()
-    stress_test(stress=10)
+    stressTest(stress=10)
     success("Stress Test (v2) Passed ({:.5f} sec)".format(time.time() - start))
 
 
-def stress_test_v3():
+def stressTestV3():
     start = time.time()
-    stress_test(stress=20)
+    stressTest(stress=20)
     success("Stress Test (v3) Passed ({:.5f} sec)".format(time.time() - start))
 
 
-def stress_test_v4():
+def stressTestV4():
     start = time.time()
-    stress_test(stress=10, messages=5000)
+    stressTest(stress=10, messages=5000)
     success("Stress Test (v4) Passed ({:.5f} sec)".format(time.time() - start))
 
 
-def multi_host_stress_test(stress=5, messages=1000, ports=[8080, 8081, 8082]):
+# pylint: disable=dangerous-default-value
+def multiHostStressTest(stress=5, messages=1000, ports=[8080, 8081, 8082]):
     hosts = []
     for port in ports:
         hosts.append(Host(timeout=TIMEOUT, port=port).start())
     clients = []
     for i in range(stress):
         for port in ports:
-            c = Client(timeout=TIMEOUT, port=port).start()
-            c.write("connected", True)
-            clients.append(c)
+            client = Client(timeout=TIMEOUT, port=port).start()
+            client.write("connected", True)
+            clients.append(client)
     report("All sockets connected")
     s()
     for i in range(messages):
-        for c in clients:
-            c.write("Test{}".format(i), text)
-        for h in hosts:
-            h.writeAll("Test{}".format(i), text)
+        for client in clients:
+            client.write("Test{}".format(i), text)
+        for host in hosts:
+            host.writeAll("Test{}".format(i), text)
     report("All data written")
     s()
     for i in range(messages):
-        for h in hosts:
-            assert h.getAll("Test{}".format(i)) == [text] * stress
+        for host in hosts:
+            assert host.getAll("Test{}".format(i)) == [text] * stress
     for i in range(messages):
-        for c in clients:
-            assert c.get("Test{}".format(i)) == text
+        for client in clients:
+            assert client.get("Test{}".format(i)) == text
     report("All data asserted")
-    for c in clients:
-        c.close()
-    for h in hosts:
-        h.close()
+    for client in clients:
+        client.close()
+    for host in hosts:
+        host.close()
 
 
-def multi_host_stress_test_v1():
+def multiHostStressTestV1():
     start = time.time()
-    multi_host_stress_test()
+    multiHostStressTest()
     success("Multi-Host Stress Test (v1) Passed ({:.5f} sec)".format(time.time() - start))
 
 
-def multi_host_stress_test_v2():
+def multiHostStressTestV2():
     start = time.time()
-    multi_host_stress_test(stress=10, ports=range(8080, 8085))
+    multiHostStressTest(stress=10, ports=range(8080, 8085))
     success("Multi-Host Stress Test (v2) Passed ({:.5f} sec)".format(time.time() - start))
 
 
-def multi_host_stress_test_v3():
+def multiHostStressTestV3():
     start = time.time()
-    multi_host_stress_test(ports=range(8080, 8089))
+    multiHostStressTest(ports=range(8080, 8089))
     success("Multi-Host Stress Test (v3) Passed ({:.5f} sec)".format(time.time() - start))
 
 
@@ -356,25 +362,26 @@ def main(args):
     if args.sleep:
         DELAY = args.sleep
     routines = [
-        # test_connection_BOTH,
-        # test_async_ordering,
-        # test_empty_message,
-        # test_host_messages,
-        # test_client_messages,
-        # test_bidirectional_messages,
-        # test_high_speed_host,
-        # test_high_throughput_host,
-        # test_high_throughput_client,
-        # test_high_throughput_bidirectional,
-        # stress_test_v1,
-        # stress_test_v2,
-        # stress_test_v3,
-        # stress_test_v4,
-        multi_host_stress_test_v1,
-        multi_host_stress_test_v2,
-        multi_host_stress_test_v3,
+        testConnectionBoth,
+        testAsyncOrdering,
+        testEmptyMessages,
+        testHostMessages,
+        testClientMessages,
+        testBidirectionalMessages,
+        testHighSpeedHost,
+        testHighThroughputHost,
+        testHighThroughputClient,
+        testHighThroughputBidirectional,
+        stressTestV1,
+        stressTestV2,
+        stressTestV3,
+        stressTestV4,
+        multiHostStressTestV1,
+        multiHostStressTestV2,
+        multiHostStressTestV3,
     ]
     num = args.num or 1
+    # pylint: disable=unused-variable
     for i in range(num):
         for test in routines:
             test()
@@ -389,5 +396,5 @@ if __name__ == "__main__":
     parser.add_argument(
         "-s", "--sleep", help="Sleep timer between actions (default {})".format(DELAY), type=float,
     )
-    args = parser.parse_args()
-    main(args)
+    arguments = parser.parse_args()
+    main(arguments)
