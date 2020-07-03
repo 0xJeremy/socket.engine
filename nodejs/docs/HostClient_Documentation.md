@@ -15,9 +15,9 @@ This library was tested with Node.js v10.15.2 on Ubuntu 19.04.
 #### Host
 
 ```javascript
-var host = require("socket.engine").host;
+var Host = require("socket.engine").Host;
 
-var h = new host();
+var h = new Host();
 h.start();
 
 h.on("Test", (data) => {
@@ -29,9 +29,9 @@ h.on("Test", (data) => {
 #### Client
 
 ```javascript
-var client = require("socket.engine").client;
+var Client = require("socket.engine").Client;
 
-var c = new client();
+var c = new Client();
 c.start();
 
 c.on("Test", (data) => {
@@ -62,12 +62,16 @@ Host Methods:
 ```
 host.start():
 	Starts the socket server. SHOULD ONLY BE CALLED ONCE
-host.get_ALL(channel):
+
+host.getAll(channel):
 	Reads all data from a specified channel. Returns a list of all responses (or [] if no responses)
+
 host.getClients():
 	Returns a list of connected clients as socket objects
-host.write_ALL(channel, data):
+
+host.writeAll(channel, data):
 	Writes data on the specified channel to all clients
+
 host.close():
 	Closes the connection with each client
 ```
@@ -87,8 +91,10 @@ Client Methods:
 ```
 client.get(channel):
 	Reads all data from a specified channel
+	
 client.write(channel, data):
 	Writes data on a specified channel
+	
 client.close():
 	Closes the connection
 ```
