@@ -20,7 +20,7 @@ h = Hub(port=8080)
 while h.transports == []:
 	pass
 
-h.write_all("test", "Hubs are connected")
+h.writeAll("test", "Hubs are connected")
 h.close()
 ```
 
@@ -32,7 +32,7 @@ h = Hub()
 
 h.connect('hello!', '127.0.0.1', 8080)
 
-print(h.get_all('test'))
+print(h.getAll('test'))
 
 h.close()
 ```
@@ -56,29 +56,29 @@ Hub.close():
 	Closes the Hub and all Transports. Also stops all threads.
 Hub.getConnections():
 	Returns all the Transports to the Hub as 'Transport' objects.
-Hub.get_all(channel):
+Hub.getAll(channel):
 	Reads all data from a specified channel. Returns a list of all responses (or [] if no responses)
-Hub.get_by_name(name, channel):
+Hub.getByName(name, channel):
 	Reads all data from a named socket by channel. Returns a list of all responses (or [] if no responses)
-Hub.get_local(channel):
+Hub.getLocal(channel):
 	Reads all data from locally hosted sockets. Returns a list of all responses (or [] if no responses)
-Hub.get_remote(channel):
+Hub.getRemote(channel):
 	Reads all data from remote hosted sockets. Returns a list of all responses (or [] if no respones)
-Hub.write_all(channel, data):
+Hub.writeAll(channel, data):
 	Writes to all connected Hubs via the 'channel' with data.
-Hub.write_to_name(name, channel, data):
+Hub.writeToName(name, channel, data):
 	Writes to all connected sockets with the specified name.
-Hub.write_to_local(channel, data):
+Hub.writeToLocal(channel, data):
 	Writes to all locally hosted sockets.
-Hub.write_to_remote(channel, data):
+Hub.writeToRemote(channel, data):
 	Writes to all remotely hosted sockets.
-Hub.write_image_all(data):
+Hub.writeImageAll(data):
 	Writes an image to all connected sockets.
-Hub.write_image_to_name(name, data):
+Hub.writeImageToName(name, data):
 	Writes an image to all sockets with a specified name.
-Hub.write_image_to_local(data):
+Hub.writeImageToLocal(data):
 	Writes an image to all locally hosted sockets.
-Hub.write_image_to_remote(data):
+Hub.writeImageToRemote(data):
 	Writes an image to all remotely hosted sockets.
 ```
 

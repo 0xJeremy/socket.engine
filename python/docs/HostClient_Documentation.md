@@ -19,7 +19,7 @@ h = host()
 h.start()
 
 while True:
-	data = h.get_ALL("test")
+	data = h.getAll("test")
 
 	if data is not None:
 		for item in data:
@@ -63,17 +63,17 @@ host.set_timeout(time):
 	Sets the timeout of a socket (in seconds)
 host.start():
 	Starts the socket thread. SHOULD ONLY BE CALLED ONCE
-host.get_ALL(channel):
+host.getAll(channel):
 	Reads all data from a specified channel. Returns a list of all responses (or [] if no responses)
 host.getClients():
 	Returns a list of connected clients as socket objects
-host.writeLock_ALL(channel, data):
+host.writeAllLock(channel, data):
 	Writes data on the specified channel to all clients. Uses a lock on each connection
-host.write_ALL(channel, data):
+host.writeAll(channel, data):
 	Writes data on the specified channel to all clients
-host.writeImgLock_ALL(data): 
+host.writeImageLockAll(data): 
 	Writes image data over the "image" channel to all clients. This method optimized for sending entire images. Uses a lock on each connection
-host.writeImg_ALL(data): 
+host.writeImageAll(data): 
 	Writes image data over the "image" channel to all clients. This method optimized for sending entire images.
 host.close(): 
 	Closes the connection with each client

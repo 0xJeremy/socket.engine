@@ -1,0 +1,51 @@
+{
+  "name": "socket.engine",
+  "version": "1.0.0",
+  "description": "A universal communication engine",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/0xJeremy/socket.engine.git"
+  },
+  "engines": {
+    "node": ">= 14.0.0",
+    "python": ">= 3.7.0"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "./**/*.js": [
+      "prettier --write",
+      "eslint --fix --report-unused-disable-directives"
+    ],
+    "./**/*.py": [
+      "black",
+      "pylint"
+    ]
+  },
+  "keywords": [
+    "TCP",
+    "socket",
+    "robotics",
+    "Raspberry Pi",
+    "IPv4",
+    "IPv6"
+  ],
+  "author": "Jeremy K",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/0xJeremy/socket.engine/issues"
+  },
+  "homepage": "https://github.com/0xJeremy/socket.engine#readme",
+  "devDependencies": {
+    "eslint": "7.3.1",
+    "husky": "4.2.5",
+    "lint-staged": "10.2.11",
+    "prettier": "2.0.5"
+  }
+}
