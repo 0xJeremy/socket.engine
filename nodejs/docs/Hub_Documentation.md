@@ -3,6 +3,7 @@
 ## Installation
 
 Node.js:
+
 ```
 npm install socket.engine
 ```
@@ -13,25 +14,25 @@ This library was tested with Node.js v10.15.2 on Ubuntu 19.04.
 
 ```javascript
 // Program 1
-var Hub = require('socket.engine').Hub;
+var Hub = require("socket.engine").Hub;
 
-h = new Hub(8080)
+h = new Hub(8080);
 
 h.on("Transport", (data) => {
-	console.log("Hub connected!");
+  console.log("Hub connected!");
 });
 
 h.on("hello", (data) => {
-	console.log(data);
-	h.close();
+  console.log(data);
+  h.close();
 });
 ```
 
 ```javascript
 // Program 2
-var Hub = require('socket.engine').Hub;
+var Hub = require("socket.engine").Hub;
 
-h = new Hub(8081)
+h = new Hub(8081);
 
 h.connect("hello!", "127.0.0.1", 8080);
 
@@ -45,13 +46,16 @@ h.close();
 #### Hub
 
 Hub Constructor:
+
 ```
 Hub(port=8080, mazSize=1500000, timeout=0)
 	port = Port Transport to use with socket
 	maxSize = The maximum buffer size before automatically being reset (generally doesn't need to be changed)
 	timeout = If non-zero, will automatically clear the buffer on each timeout interval (measured in seconds)
 ```
+
 Hub Methods:
+
 ```
 Hub.connect(name, addr, port):
 	Connects to another port. This Transport is named 'name', and the target is the (addr, port) specified.
@@ -88,13 +92,16 @@ Hub.write_image_to_remote(data):
 #### Transport
 
 Transport Constructor:
+
 ```
 Transport(name, timeout=0, maxSize=1500000)
 	name = the name of the socket
 	timeout = If non-zero, will automatically clear the buffer on each timeout interval (measured in seconds)
 	size = Default read size of socket
 ```
+
 Transport Methods:
+
 ```
 Transport.connect(name, addr, port):
 	Initiates a Transport to a remote Hub. Names the socket with the given 'name', and connects to the (addr, port).

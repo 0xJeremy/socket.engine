@@ -1,207 +1,215 @@
-'use strict'
+'use strict';
 
-var EventEmitter = require('events').EventEmitter;
-var inherits = require('util').inherits;
-var ip = require('ip');
+const EventEmitter = require('events').EventEmitter;
+const inherits = require('util').inherits;
+const ip = require('ip');
 
-/////////////////
-/// CONSTANTS ///
-/////////////////
+// ///////////////
+// / CONSTANTS ///
+// ///////////////
 
-var STOP = 'STOP';
-var ACK = '__ack';
-var IMAGE = 'image';
-var NEWLINE = '\n';
-var base64 = new RegExp('^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$');
-var FAMILY = 'IPv4';
+const STOP = 'STOP';
+const ACK = '__ack';
+const IMAGE = 'image';
+const NEWLINE = '\n';
+const base64 = new RegExp(
+    '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$',
+);
+const FAMILY = 'IPv4';
 
-var ADDR = ip.address();
-var PORT = 8080;
-var MAXSIZE = 1500000;
-var TIMEOUT = 0;
+const ADDR = ip.address();
+const PORT = 8080;
+const MAXSIZE = 1500000;
+const TIMEOUT = 0;
 
-////////////////////////
-/// CONNECTION CLASS ///
-////////////////////////
+// //////////////////////
+// / CONNECTION CLASS ///
+// //////////////////////
 
 function _connection(socket, address, timeout, maxSize) {
-	EventEmitter.call(this);
-	this.socket = socket;
-	this.address = address;
-	this.timeout = timeout;
-	this.maxSize = maxSize;
-	this.lastData = new Date().getTime();
-	this.msgBuffer = '';
-	this.channels = {};
-	this.listener = null;
+  EventEmitter.call(this);
+  this.socket = socket;
+  this.address = address;
+  this.timeout = timeout;
+  this.maxSize = maxSize;
+  this.lastData = new Date().getTime();
+  this.msgBuffer = '';
+  this.channels = {};
+  this.listener = null;
 
-	//////////////////////
-	/// SOCKET ACTIONS ///
-	//////////////////////
+  // ////////////////////
+  // / SOCKET ACTIONS ///
+  // ////////////////////
 
-	this.socket.on('data', (bytes) => {
-		this.msgBuffer += bytes.toString();
-		if(this.msgBuffer != '' && this.msgBuffer != '\n') {
-			var data = this.msgBuffer.split('\n');
-			for(var i = 0; i < data.length; i++) {
-				try {
-					if(data[i] == '') {
-						continue;
-					}
-					var msg = JSON.parse(data[i]);
-					this.channels[msg['type']] = msg['data'];
-					if(msg['type'] == IMAGE) {
-						if(base64.test(msg['data'])) {
-							this.emit(msg['type'], msg['data']);
-						}
-					} else {
-						this.emit(msg['type'], msg['data']);
-					}
-					this._reset();
-					this.emit('data', msg);
-				} catch(err) {};
-			}
-		}
-	});
-	this.socket.on('end', () => {
-			this.emit('end');
-		});
+  this.socket.on('data', (bytes) => {
+    this.msgBuffer += bytes.toString();
+    if (this.msgBuffer != '' && this.msgBuffer != '\n') {
+      const data = this.msgBuffer.split('\n');
+      for (let i = 0; i < data.length; i++) {
+        try {
+          if (data[i] == '') {
+            continue;
+          }
+          const msg = JSON.parse(data[i]);
+          this.channels[msg['type']] = msg['data'];
+          if (msg['type'] == IMAGE) {
+            if (base64.test(msg['data'])) {
+              this.emit(msg['type'], msg['data']);
+            }
+          } else {
+            this.emit(msg['type'], msg['data']);
+          }
+          this._reset();
+          this.emit('data', msg);
+        } catch (err) {}
+      }
+    }
+  });
+  this.socket.on('end', () => {
+    this.emit('end');
+  });
 
-	this.socket.on('error', (err) => {
-		this.emit('warning', err);
-	});
+  this.socket.on('error', (err) => {
+    this.emit('warning', err);
+  });
 
-	this._reset = function() {
-		// this.msgBuffer = '';
-		// this.lastData = new Date().getTime();
-		// this.write(ACK, 'True');
-		var op = null;
-	}
+  this._reset = function() {
+    // this.msgBuffer = '';
+    // this.lastData = new Date().getTime();
+    // this.write(ACK, 'True');
+    const op = null;
+  };
 
-	///////////////
-	/// METHODS ///
-	///////////////
+  // /////////////
+  // / METHODS ///
+  // /////////////
 
-	this.get = function(channel) {
-		return this.channels[channel];
-	}
+  this.get = function(channel) {
+    return this.channels[channel];
+  };
 
-	this.write = function(dataType, data) {
-		var msg = {
-			'type': dataType,
-			'data': data
-		};
-		this.socket.write(JSON.stringify(msg) + NEWLINE);
-	}
+  this.write = function(dataType, data) {
+    const msg = {
+      type: dataType,
+      data: data,
+    };
+    this.socket.write(JSON.stringify(msg) + NEWLINE);
+  };
 
-	this.close = function() {
-		this.socket.destroy();
-	}
+  this.close = function() {
+    this.socket.destroy();
+  };
 
-	// Timeout handler
-	if(this.timeout > 0) {
-		setInterval( () => {
-			if(((new Date().getTime() - this.lastData) / 1000) > this.timeout) {
-				if(this.msgBuffer == '') {
-					try { this.reset() }
-					catch(err) {}
-				}
-			}
-		}, this.timeout);
-	}
+  // Timeout handler
+  if (this.timeout > 0) {
+    setInterval(() => {
+      if ((new Date().getTime() - this.lastData) / 1000 > this.timeout) {
+        if (this.msgBuffer == '') {
+          try {
+            this.reset();
+          } catch (err) {}
+        }
+      }
+    }, this.timeout);
+  }
 }
 
 inherits(_connection, EventEmitter);
 
-//////////////////
-/// HOST CLASS ///
-//////////////////
+// ////////////////
+// / HOST CLASS ///
+// ////////////////
 
-function host(addr=ADDR, port=PORT, maxSize=MAXSIZE, timeout=TIMEOUT) {
-	EventEmitter.call(this);
-	this.net = require('net');
+function host(addr = ADDR, port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
+  EventEmitter.call(this);
+  this.net = require('net');
 
-	this.addr = addr;
-	this.port = port;
-	this.timeout = timeout;
-	this.maxSize = maxSize;
+  this.addr = addr;
+  this.port = port;
+  this.timeout = timeout;
+  this.maxSize = maxSize;
 
-	this.clients = [];
-	this.sockets = [];
-	
-	this.socketpath = {
-		'port': this.port,
-		'family': FAMILY,
-		'address': this.addr
-	};
-	this.listener = null;
-	this.opened = false;
+  this.clients = [];
+  this.sockets = [];
 
-	//////////////
-	/// SERVER ///
-	//////////////
+  this.socketpath = {
+    port: this.port,
+    family: FAMILY,
+    address: this.addr,
+  };
+  this.listener = null;
+  this.opened = false;
 
-	this.server = this.net.createServer((socket) => {
-		this.listener = socket;
-	});
+  // ////////////
+  // / SERVER ///
+  // ////////////
 
-	this.server.on('connection', (socket) => {
-		for(var i = 0; i < this.sockets.length; i++) {
-			if(this.sockets[i] === socket) {
-				return
-			}
-		}
-		this.sockets.push(socket);
-		var connection = new _connection(socket, socket.address(), this.timeout, this.maxSize)
-		this.clients.push(connection);
-		connection.on('data', (msg) => {
-			this.emit(msg['type'], this.get_ALL(msg['type']));
-		});
-		connection.on('error', (err) => {
-			this.emit('warning', err);
-		});
-		connection.on('end', () => {
-			this.emit('end');
-		});
-	});
+  this.server = this.net.createServer((socket) => {
+    this.listener = socket;
+  });
 
-	///////////////
-	/// METHODS ///
-	///////////////
+  this.server.on('connection', (socket) => {
+    for (let i = 0; i < this.sockets.length; i++) {
+      if (this.sockets[i] === socket) {
+        return;
+      }
+    }
+    this.sockets.push(socket);
+    const connection = new _connection(
+        socket,
+        socket.address(),
+        this.timeout,
+        this.maxSize,
+    );
+    this.clients.push(connection);
+    connection.on('data', (msg) => {
+      this.emit(msg['type'], this.get_ALL(msg['type']));
+    });
+    connection.on('error', (err) => {
+      this.emit('warning', err);
+    });
+    connection.on('end', () => {
+      this.emit('end');
+    });
+  });
 
-	this.start = function() {
-		this.server.listen(this.socketpath.port, this.socketpath.address);
-		this.opened = true;
-		return this;
-	}
+  // /////////////
+  // / METHODS ///
+  // /////////////
 
-	this.get_ALL = function(channel) {
-		var data = [];
-		for(var i = 0; i < this.clients.length; i++) {
-			var tmp = this.clients[i].get(channel)
-			if(tmp != undefined) {
-				data.push(tmp);
-			}
-		}
-		return data;
-	}
+  this.start = function() {
+    this.server.listen(this.socketpath.port, this.socketpath.address);
+    this.opened = true;
+    return this;
+  };
 
-	this.getClients = function() {
-		return this.clients;
-	}
+  this.get_ALL = function(channel) {
+    const data = [];
+    for (let i = 0; i < this.clients.length; i++) {
+      const tmp = this.clients[i].get(channel);
+      if (tmp != undefined) {
+        data.push(tmp);
+      }
+    }
+    return data;
+  };
 
-	this.write_ALL =function(channel, data) {
-		for(var i = 0; i < this.clients.length; i++) {
-			this.clients[i].write(channel, data);
-		}
-		return this;
-	}
+  this.getClients = function() {
+    return this.clients;
+  };
 
-	this.close = function() {
-		for(var i = 0; i < this.clients.length; i++) {
-			this.clients[i].close();
-		}
-	}
+  this.write_ALL = function(channel, data) {
+    for (let i = 0; i < this.clients.length; i++) {
+      this.clients[i].write(channel, data);
+    }
+    return this;
+  };
+
+  this.close = function() {
+    for (let i = 0; i < this.clients.length; i++) {
+      this.clients[i].close();
+    }
+  };
 }
 
 inherits(host, EventEmitter);

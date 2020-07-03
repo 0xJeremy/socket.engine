@@ -3,6 +3,7 @@
 ## Installation
 
 Python:
+
 ```
 pip install socket.engine
 ```
@@ -12,6 +13,7 @@ This library requires Python3. It was tested extensively on Python 3.7.5 with Ub
 ## How to use
 
 #### Host
+
 ```python
 from socketengine import host
 
@@ -28,9 +30,11 @@ while True:
 
 h.close()
 ```
+
 Please Note: Starting a socket.engine socket in Python is a blocking action and will not finish until the socket is opened.
 
 #### Client
+
 ```python
 from socketengine import client
 
@@ -49,6 +53,7 @@ Socket.engine will automatically store the most recent piece of data received ov
 #### Host
 
 Host Constructor:
+
 ```
 host(addr='127.0.0.1', port=8080, timeout=2, size=256, open=True)
 	addr = Address to host the socket connection
@@ -57,7 +62,9 @@ host(addr='127.0.0.1', port=8080, timeout=2, size=256, open=True)
 	size = Default read size of socket
 	open = Open the socket automatically on connection (note: this does not "start" the socket thread)
 ```
+
 Host Methods:
+
 ```
 host.set_timeout(time):
 	Sets the timeout of a socket (in seconds)
@@ -71,16 +78,18 @@ host.writeAllLock(channel, data):
 	Writes data on the specified channel to all clients. Uses a lock on each connection
 host.writeAll(channel, data):
 	Writes data on the specified channel to all clients
-host.writeImageLockAll(data): 
+host.writeImageLockAll(data):
 	Writes image data over the "image" channel to all clients. This method optimized for sending entire images. Uses a lock on each connection
-host.writeImageAll(data): 
+host.writeImageAll(data):
 	Writes image data over the "image" channel to all clients. This method optimized for sending entire images.
-host.close(): 
+host.close():
 	Closes the connection with each client
 ```
 
 #### Client
+
 Client Constructor:
+
 ```
 client(addr='127.0.0.1', port=8080, timeout=2, size=256, open=True)
 	addr = Address the host is using
@@ -89,7 +98,9 @@ client(addr='127.0.0.1', port=8080, timeout=2, size=256, open=True)
 	size = Default read size of socket
 	open = Open the socket automatically on connection (note: this does not "start" the socket thread)
 ```
+
 Client Methods:
+
 ```
 client.set_timeout(time):
 	Sets the timeout of a socket (in seconds)
@@ -99,7 +110,7 @@ client.get(channel):
 	Reads all data from a specified channel
 client.writeLock(channel, data):
 	Writes data on the specified channel. Uses a lock on each connection
-client.write(channel, data): 
+client.write(channel, data):
 	Writes data on a specified channel
 client.writeImgLock(data):
 	Writes image data over the "image" channel. This method optimized for sending entire images. Uses a lock on each connection

@@ -1,7 +1,7 @@
-var host = require('./socketengine/host');
-var client = require('./socketengine/client');
-var Transport = require('./socketengine/transport');
-var Hub = require('./socketengine/hub');
+const host = require('./socketengine/host');
+const client = require('./socketengine/client');
+const Transport = require('./socketengine/transport');
+const Hub = require('./socketengine/hub');
 
 module.exports.host = host;
 module.exports.client = client;

@@ -3,6 +3,7 @@
 ## Installation
 
 Python:
+
 ```
 pip install socket.engine
 ```
@@ -42,13 +43,16 @@ h.close()
 #### Hub
 
 Hub Constructor:
+
 ```
 Hub(port=None, timeout=2, size=256)
 	port = Port Transport to use with socket
 	timeout = Sets the standard timeout of a socket (in seconds)
 	size = Default read size of socket
 ```
+
 Hub Methods:
+
 ```
 Hub.connect(name, addr, port):
 	Connects to another port. The Transport is named 'name', and the target is the (addr, port) specified.
@@ -85,13 +89,16 @@ Hub.writeImageToRemote(data):
 #### Transport
 
 Transport Constructor:
+
 ```
 Transport(name, timeout=2, size=256)
 	name = the name of the socket
 	timeout = Sets the standard timeout of a socket (in seconds)
 	size = Default read size of socket
 ```
+
 Transport Methods:
+
 ```
 Transport.connect(name, addr, port):
 	Initiates a Transport to a remote Hub. Names the socket with the given 'name', and connects to the (addr, port).

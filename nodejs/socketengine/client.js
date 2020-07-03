@@ -1,108 +1,109 @@
-'use strict'
+'use strict';
 
-var EventEmitter = require('events').EventEmitter;
-var inherits = require('util').inherits;
-var ip = require('ip');
+const EventEmitter = require('events').EventEmitter;
+const inherits = require('util').inherits;
+const ip = require('ip');
 
-/////////////////
-/// CONSTANTS ///
-/////////////////
+// ///////////////
+// / CONSTANTS ///
+// ///////////////
 
-var STOP = 'STOP';
-var ACK = '__ack';
-var IMAGE = 'image';
-var NEWLINE = '\n';
+const STOP = 'STOP';
+const ACK = '__ack';
+const IMAGE = 'image';
+const NEWLINE = '\n';
 
-var ADDR = ip.address();
-var PORT = 8080;
-var MAXSIZE = 1500000;
+const ADDR = ip.address();
+const PORT = 8080;
+const MAXSIZE = 1500000;
 
-////////////////////
-/// CLIENT CLASS ///
-////////////////////
+// //////////////////
+// / CLIENT CLASS ///
+// //////////////////
 
-function client(addr=ADDR, port=PORT) {
-	EventEmitter.call(this);
-	this.net = require('net');
+function client(addr = ADDR, port = PORT) {
+  EventEmitter.call(this);
+  this.net = require('net');
 
-	this.addr = addr;
-	this.port = port;
-	this.socket = new this.net.Socket();
-	this.msgBuffer = '';
-	this.channels = {};
-	this.opened = false;
+  this.addr = addr;
+  this.port = port;
+  this.socket = new this.net.Socket();
+  this.msgBuffer = '';
+  this.channels = {};
+  this.opened = false;
 
-	//////////////////////
-	/// SOCKET ACTIONS ///
-	//////////////////////
+  // ////////////////////
+  // / SOCKET ACTIONS ///
+  // ////////////////////
 
-	this.start = function() {
-		while(true) {
-			try {
-				this.socket.connect(this.port, this.addr, () => {
-					this.emit('connected');
-				});
-				break;
-			} catch(err) { }
-		}
+  this.start = function() {
+    while (true) {
+      try {
+        this.socket.connect(this.port, this.addr, () => {
+          this.emit('connected');
+        });
+        break;
+      } catch (err) {}
+    }
 
-		this.socket.on('data', (bytes) => {
-			this.msgBuffer += bytes.toString();
-			if(this.msgBuffer != '' && this.msgBuffer != '\n') {
-				var data = this.msgBuffer.split('\n');
-				var errors = false;
-				for(var i = 0; i < data.length; i++) {
-					try {
-						var msg = JSON.parse(data[i]);
-						this.channels[msg['type']] = msg['data'];
+    this.socket.on('data', (bytes) => {
+      this.msgBuffer += bytes.toString();
+      if (this.msgBuffer != '' && this.msgBuffer != '\n') {
+        const data = this.msgBuffer.split('\n');
+        let errors = false;
+        for (let i = 0; i < data.length; i++) {
+          try {
+            const msg = JSON.parse(data[i]);
+            this.channels[msg['type']] = msg['data'];
 
-						if(msg['type'] == IMAGE) {
-							if(base64.test(msg['data'])) {
-								this.emit(msg['type'], msg['data']);
-							}
-						} else {
-							this.emit(msg['type'], msg['data']);
-						}
-						this.emit('data', msg);
-					} catch(err) {errors = true};
-				}
-				if(errors == false) {
-					this.msgBuffer = '';
-				}
-			}
-		});
+            if (msg['type'] == IMAGE) {
+              if (base64.test(msg['data'])) {
+                this.emit(msg['type'], msg['data']);
+              }
+            } else {
+              this.emit(msg['type'], msg['data']);
+            }
+            this.emit('data', msg);
+          } catch (err) {
+            errors = true;
+          }
+        }
+        if (errors == false) {
+          this.msgBuffer = '';
+        }
+      }
+    });
 
-		this.socket.on('end', () => {
-			this.emit('end');
-		});
+    this.socket.on('end', () => {
+      this.emit('end');
+    });
 
-		this.socket.on('error', (err) => {
-			this.emit('warning', err);
-		});
-		this.opened = true;
-		return this
-	}
+    this.socket.on('error', (err) => {
+      this.emit('warning', err);
+    });
+    this.opened = true;
+    return this;
+  };
 
-	///////////////
-	/// METHODS ///
-	///////////////
+  // /////////////
+  // / METHODS ///
+  // /////////////
 
-	this.get = function(channel) {
-		return this.channels[channel];
-	}
+  this.get = function(channel) {
+    return this.channels[channel];
+  };
 
-	this.write = function(dataType, data) {
-		var msg = {
-			'type': dataType,
-			'data': data
-		};
-		this.socket.write(JSON.stringify(msg) + NEWLINE);
-	}
+  this.write = function(dataType, data) {
+    const msg = {
+      type: dataType,
+      data: data,
+    };
+    this.socket.write(JSON.stringify(msg) + NEWLINE);
+  };
 
-	this.close = function() {
-		this.socket.destroy();
-	}
-
+  this.close = function() {
+    this.socket.destroy();
+  };
 }
 
 inherits(client, EventEmitter);
