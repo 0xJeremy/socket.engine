@@ -4,26 +4,21 @@
 import sys
 import os
 import argparse
-from time import sleep
 import cv2
 
 PACKAGE_PARENT = ".."
 SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
 sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
 
-from socketengine import Hub
+from socketengine import Transport
 
 COLOR = False
 SIZE = (320, 240)
 
 
 def sendVideo():
-    hub = Hub(port=8080)
-    print('Started Hub on port', hub.port)
-    hub.connect('video', '127.0.0.1', 8081)
-    print('Connected!')
-    sleep(2)
-    transport = hub.transports[0]
+    transport = Transport('video')
+    transport.waitForConnection(8080)
     cam = cv2.VideoCapture(2)
     while True:
         _, frame = cam.read()
@@ -34,25 +29,21 @@ def sendVideo():
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             cv2.destroyAllWindows()
-            hub.close()
+            transport.close()
             break
         transport.writeImage(frame)
 
 
 def getVideo():
-    hub = Hub(port=8081)
-    print('Started Hub on port', hub.port)
-    while hub.transports == []:
-        pass
-    transport = hub.transports[0]
-    print('Starting capture')
+    transport = Transport('video')
+    transport.connect('video', '127.0.0.1', 8080)
     while transport.getImage() is None:
         pass
     while True:
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             cv2.destroyAllWindows()
-            hub.close()
+            transport.close()
             break
         cv2.imshow('Stream', transport.getImage())
 

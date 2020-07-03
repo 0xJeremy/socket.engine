@@ -120,13 +120,13 @@ Transport.connect(name, addr, port):
 Transport.get(channel):
 	Gets data from a channel if it exists. Returns None if no data exists on channel.
 	
-Transport.getImg():
+Transport.getImage():
 	Gets an from the socket if one exists. Returns None if one does not exist.
 	
 Transport.write(channel, data):
 	Writes data over a specified channel with the given data.
 	
-Transport.writeImg(data):
+Transport.writeImage(data):
 	Writes an image over the socket. Optimized for images specifically.
 	
 Transport.close():

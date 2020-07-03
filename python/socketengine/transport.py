@@ -1,18 +1,18 @@
 import socket
+import zlib
 from threading import Thread, Lock
-from json import dumps as dictToJson
-from json import loads as jsonToDict
-from json.decoder import JSONDecodeError
+from google import protobuf
 from .common import encodeImg, decodeImg, generateSocket
+from .message_pb2 import SocketMessage
 
 #################
 ### CONSTANTS ###
 #################
 
-from .constants import ACK, NEWLINE, IMG_MSG_S, IMG_MSG_E
-from .constants import IMAGE, TYPE, DATA
-from .constants import TIMEOUT, SIZE
-from .constants import STATUS, CLOSING, NAME_CONN
+from .constants import ACK, IMAGE, TIMEOUT, SIZE
+from .constants import CLOSING, NAME_CONN
+
+DELIMITER = b'xxxxxx'
 
 ###############################################################
 
@@ -20,21 +20,23 @@ from .constants import STATUS, CLOSING, NAME_CONN
 ### TRANSPORT CLASS ###
 #######################
 
-# pylint: disable=invalid-name, consider-using-enumerate
+# pylint: disable=invalid-name, consider-using-enumerate, no-member
 class Transport:
     TYPE_LOCAL = 1
     TYPE_REMOTE = 2
 
-    def __init__(self, name, timeout=TIMEOUT, size=SIZE):
+    def __init__(self, name=None, timeout=TIMEOUT, size=SIZE, compress=False):
         self.name = name
-        self.socket = None
-        self.addr, self.port = None, None
-        self.canWrite = True
         self.channels = {}
         self.timeout = timeout
         self.size = size
+        self.compress = compress
+        self.canWrite = True
         self.stopped = False
         self.opened = False
+        self.socket = None
+        self.addr = None
+        self.port = None
         self.type = None
         self.lock = Lock()
 
@@ -54,46 +56,67 @@ class Transport:
         return self
 
     def __run(self):
-        tmp = ''
+        tmp = b''
         while True:
             if self.stopped:
                 self.socket.close()
                 return
 
             try:
-                tmp += self.socket.recv(self.size).decode()
+                tmp += self.socket.recv(self.size)
             except socket.timeout:
                 continue
             except OSError:
                 self.close()
 
-            if tmp != '':
-                data = tmp.split('\n')
-                for i in range(len(data)):
+            if tmp != b'':
+                if self.compress:
                     try:
-                        msg = jsonToDict(data[i])
-                    except JSONDecodeError:
+                        data = zlib.decompress(tmp).split(DELIMITER)
+                    except zlib.error:
+                        data = tmp.split(DELIMITER)
+                else:
+                    data = tmp.split(DELIMITER)
+
+                for i in range(len(data)):
+                    msg = SocketMessage()
+                    try:
+                        msg.ParseFromString(data[i])
+                    except protobuf.message.DecodeError:
                         continue
 
-                    self.__cascade(msg[TYPE], msg[DATA])
-                    if msg[TYPE] == IMAGE:
-                        self.channels[IMAGE] = decodeImg(msg[DATA])
+                    if msg.type == IMAGE:
+                        self.channels[IMAGE] = decodeImg(msg.data)
                     else:
-                        self.channels[msg[TYPE]] = msg[DATA]
-                    data[i] = ''
+                        self.channels[msg.type] = msg.data
+                    data[i] = b''
+                    self.__cascade(msg)
 
-                tmp = ''.join(data)
+                tmp = b''.join(data)
 
-    def __cascade(self, mtype, mdata):
-        if mtype == ACK:
+    def __cascade(self, message):
+        meta = message.meta
+        if meta == ACK:
             self.canWrite = True
-        if mtype == STATUS:
-            if mdata == CLOSING:
-                self.__close()
-        if mtype == NAME_CONN:
-            self.name = mdata
-        if mtype == IMAGE:
-            self.write(ACK, ACK)
+        elif meta == CLOSING:
+            self.__close()
+        elif meta == NAME_CONN:
+            self.name = message.data
+        if message.ackRequired:
+            self.__ack()
+
+    def __ack(self):
+        self.__writeMeta(ACK)
+
+    def __writeMeta(self, meta, data=None):
+        msg = SocketMessage()
+        msg.meta = meta
+        if data:
+            msg.data = data
+        toSend = msg.SerializeToString() + DELIMITER
+        if self.compress:
+            toSend = zlib.compress(toSend)
+        self.socket.sendall(toSend)
 
     def __close(self):
         self.opened = False
@@ -125,7 +148,7 @@ class Transport:
                 raise RuntimeError('Socket address in use: {}'.format(error))
         self.type = Transport.TYPE_LOCAL
         self.opened = True
-        self.write(NAME_CONN, self.name)
+        self.__writeMeta(NAME_CONN, self.name)
         self.__start()
 
     def waitForConnection(self, port):
@@ -150,7 +173,7 @@ class Transport:
                 self.receive(conn, addr, port)
                 oldSocket.close()
                 break
-            except OSError as error:
+            except OSError:
                 continue
             except socket.timeout:
                 continue
@@ -167,20 +190,29 @@ class Transport:
         return None
 
     def write(self, channel, data):
-        if self.opened:
+        if self.canWrite and self.opened:
             with self.lock:
-                msg = {TYPE: channel.replace('\n', ''), DATA: data.replace('\n', '')}
-                self.socket.sendall(dictToJson(msg).encode() + NEWLINE)
+                msg = SocketMessage()
+                msg.type = channel.replace('\n', '')
+                msg.data = data.replace('\n', '')
+                toSend = msg.SerializeToString() + DELIMITER
+                if self.compress:
+                    toSend = zlib.compress(toSend)
+                self.socket.sendall(toSend)
 
     def writeImage(self, data):
         if self.canWrite and self.opened:
             with self.lock:
                 self.canWrite = False
-                self.socket.sendall(IMG_MSG_S + encodeImg(data) + IMG_MSG_E + NEWLINE)
+                msg = SocketMessage()
+                msg.type = IMAGE
+                msg.data = encodeImg(data)
+                msg.ackRequired = True
+                self.socket.sendall(msg.SerializeToString() + DELIMITER)
 
     def close(self):
         try:
-            self.write(STATUS, CLOSING)
+            self.__writeMeta(CLOSING)
         except OSError:
             pass
         self.__close()

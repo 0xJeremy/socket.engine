@@ -143,8 +143,8 @@ class TestTransportMethods(unittest.TestCase):
         hubTwo.close()
         finish('Bidirectional messages Test Passed')
 
-    def stressHighSpeed(self, num=10, bidirectional=False):
-        hubOne, hubTwo = initialize()
+    def stressHighSpeed(self, num=10, bidirectional=False, size=256):
+        hubOne, hubTwo = initialize(size=size)
         for i in range(num):
             hubOne.writeToName(TEST, 'test{}'.format(i), TEXT)
             if bidirectional:
@@ -167,9 +167,19 @@ class TestTransportMethods(unittest.TestCase):
         self.stressHighSpeed()
         finish('One-way High Speed Test Passed')
 
-    def multiTransports(self, numConn=10, messages=10, bidirectional=False):
-        hubOne = Hub(timeout=TIMEOUT)
-        hubTwo = Hub(timeout=TIMEOUT)
+    def testBidirectionalHighspeed(self):
+        start()
+        self.stressHighSpeed(bidirectional=True)
+        finish('Bidirectional High Speed Test Passed')
+
+    def testOnewayHighThroughput(self):
+        start()
+        self.stressHighSpeed(num=1000, size=2048)
+        finish('One-way High Throughput Test Passed')
+
+    def multiTransports(self, numConn=10, messages=10, bidirectional=False, size=256):
+        hubOne = Hub(timeout=TIMEOUT, size=size)
+        hubTwo = Hub(timeout=TIMEOUT, size=size)
         for i in range(numConn):
             hubOne.connect('Test{}'.format(i), HOME, hubTwo.port)
 
@@ -190,7 +200,7 @@ class TestTransportMethods(unittest.TestCase):
         while hubTwo.getAll('Test{}'.format(messages - 1)) != [TEXT] * numConn:
             pass
         if bidirectional:
-            while hubTwo.getAll('Test{}'.format(messages - 1)) != [TEXT] * numConn:
+            while hubOne.getAll('Test{}'.format(messages - 1)) != [TEXT] * numConn:
                 pass
 
         for i in range(messages):
@@ -204,6 +214,11 @@ class TestTransportMethods(unittest.TestCase):
         start()
         self.multiTransports()
         finish('Multi-Connection One-Way Test Passed')
+
+    def testMultitransportsBidirectional(self):
+        start()
+        self.multiTransports(bidirectional=True, size=2048)
+        finish('Multi-Connection Bidirectional Test Passed')
 
 
 if __name__ == '__main__':

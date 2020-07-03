@@ -11,10 +11,42 @@ sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
 
 # pylint: disable=wrong-import-position, no-member, too-many-branches, no-name-in-module, bad-continuation
 from socketengine import Hub
-from common import TIMEOUT, HOME, TEXT, start, finish
+from common import TIMEOUT, TEST, HOME, TEXT, start, finish, initialize
 
 # pylint: disable=unused-variable
 class TestTransportMethods(unittest.TestCase):
+    def stressHighSpeed(self, num=10, bidirectional=False, size=256):
+        hubOne, hubTwo = initialize(size=size)
+        for i in range(num):
+            hubOne.writeToName(TEST, 'test{}'.format(i), TEXT)
+            if bidirectional:
+                hubTwo.writeToName(TEST, 'test{}'.format(i), TEXT)
+        self.assertEqual(len(hubOne.transports), len(hubTwo.transports))
+
+        for i in range(num):
+            while hubTwo.getAll('test{}'.format(i)) != [TEXT]:
+                time.sleep(0.01)
+            if bidirectional:
+                while hubOne.getAll('test{}'.format(i)) != [TEXT]:
+                    time.sleep(0.01)
+
+        for i in range(num):
+            if bidirectional:
+                self.assertEqual(hubOne.getAll('test{}'.format(i)), [TEXT])
+            self.assertEqual(hubTwo.getAll('test{}'.format(i)), [TEXT])
+        hubOne.close()
+        hubTwo.close()
+
+    def testBidirectionalHighThroughput(self):
+        start()
+        self.stressHighSpeed(num=1000, bidirectional=True, size=2048)
+        finish('Bidirectional High Throughput Test Passed')
+
+    def testExtremeThroughput(self):
+        start()
+        self.stressHighSpeed(num=5000, bidirectional=True, size=4096)
+        finish('Extreme Throughput Test Passed')
+
     def multiTransports(self, numConn=10, messages=10, bidirectional=False, size=256):
         hubOne = Hub(timeout=TIMEOUT, size=size)
         hubTwo = Hub(timeout=TIMEOUT, size=size)
@@ -48,6 +80,16 @@ class TestTransportMethods(unittest.TestCase):
             self.assertEqual(hubTwo.getAll('Test{}'.format(i)), [TEXT] * numConn)
         hubOne.close()
         hubTwo.close()
+
+    def testMultitransportsOneway(self):
+        start()
+        self.multiTransports()
+        finish('Multi-Connection One-Way Test Passed')
+
+    def testMultitransportsBidirectional(self):
+        start()
+        self.multiTransports(bidirectional=True, size=2048)
+        finish('Multi-Connection Bidirectional Test Passed')
 
     def testMultipleTransportsStressTest(self):
         start()
@@ -88,20 +130,10 @@ class TestTransportMethods(unittest.TestCase):
         hubOne.close()
         hubTwo.close()
 
-    def testStressTestV1(self):
+    def testStressTestV4(self):
         start()
-        self.stressTest()
-        finish('Stress Test (v1) Passed')
-
-    def testStressTestV2(self):
-        start()
-        self.stressTest(stress=10)
-        finish('Stress Test (v2) Passed')
-
-    def testStressTestV3(self):
-        start()
-        self.stressTest(stress=25)
-        finish('Stress Test (v3) Passed')
+        self.stressTest(stress=25, messages=5000)
+        finish('Stress Test (v4) Passed')
 
     def multiHubStresstest(self, stress=5, messages=1000):
         hubs = []
@@ -138,20 +170,17 @@ class TestTransportMethods(unittest.TestCase):
         for hub in hubs:
             hub.close()
 
-    def testMultihostStresstestV1(self):
-        start()
-        self.multiHubStresstest()
-        finish('Multi-Host Stress Test (v1) Passed')
-
-    def multihostStresstestV2(self):
-        start()
-        self.multiHubStresstest(stress=10)
-        finish('Multi-Host Stress Test (v2) Passed')
-
     def multihostStresstestV3(self):
         start()
         self.multiHubStresstest(stress=10, messages=5000)
         finish('Multi-Host Stress Test (v3) Passed')
+
+    # This test read/wrote 4.412gb of data in 818.95143 seconds. (on my machine)
+    # It isn't worth running usually.
+    # def multi_host_stressTestV4(self):
+    #   start()
+    #   self.multiHubStresstest(stress=20, messages=5000)
+    #   finish('Multi-Host Stress Test (v4)')
 
 
 if __name__ == '__main__':

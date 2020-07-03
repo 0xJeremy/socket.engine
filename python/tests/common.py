@@ -43,9 +43,9 @@ def success(message):
     print('\033[32m[{}]\033[0m'.format(message))
 
 
-def initialize():
-    hubOne = Hub(timeout=TIMEOUT)
-    hubTwo = Hub(timeout=TIMEOUT)
+def initialize(size=256):
+    hubOne = Hub(timeout=TIMEOUT, size=size)
+    hubTwo = Hub(timeout=TIMEOUT, size=size)
     hubOne.connect(TEST, HOME, hubTwo.port)
     while len(hubOne.transports) == 0 or len(hubTwo.transports) == 0:
         pass
