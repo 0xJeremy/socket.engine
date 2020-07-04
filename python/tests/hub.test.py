@@ -98,14 +98,14 @@ class TestTransportMethods(unittest.TestCase):
         hubOne.connect(TEST, HOME, hubTwo.port)
         while len(hubTwo.transports) == 0:
             pass
-        hubOne.writeToName(TEST, TEST, PORT_TEST)
+        hubOne.writeToNameWhenReady(TEST, TEST, PORT_TEST)
         while hubTwo.getAll(TEST) == []:
             pass
         self.assertEqual(hubOne.getAll(TEST), [])
         self.assertEqual(hubOne.getAll(TEST_2), [])
         self.assertEqual(hubTwo.getAll(TEST), [PORT_TEST])
         self.assertEqual(hubTwo.getAll(TEST_2), [])
-        hubOne.writeToName(TEST, TEST_2, PORT_TEST_2)
+        hubOne.writeToNameWhenReady(TEST, TEST_2, PORT_TEST_2)
         while hubTwo.getAll(TEST_2) == []:
             pass
         self.assertEqual(hubOne.getAll(TEST), [])
@@ -123,16 +123,16 @@ class TestTransportMethods(unittest.TestCase):
         self.assertEqual(hubOne.getAll(TEST_2), [])
         self.assertEqual(hubTwo.getAll(TEST), [])
         self.assertEqual(hubTwo.getAll(TEST_2), [])
-        hubOne.writeToName(TEST, TEST, PORT_TEST)
-        hubTwo.writeToName(TEST, TEST, PORT_TEST)
+        hubOne.writeToNameWhenReady(TEST, TEST, PORT_TEST)
+        hubTwo.writeToNameWhenReady(TEST, TEST, PORT_TEST)
         while hubOne.getAll(TEST) == [] or hubTwo.getAll(TEST) == []:
             pass
         self.assertEqual(hubOne.getAll(TEST), [PORT_TEST])
         self.assertEqual(hubOne.getAll(TEST_2), [])
         self.assertEqual(hubTwo.getAll(TEST), [PORT_TEST])
         self.assertEqual(hubTwo.getAll(TEST_2), [])
-        hubOne.writeToName(TEST, TEST_2, PORT_TEST_2)
-        hubTwo.writeToName(TEST, TEST_2, PORT_TEST_2)
+        hubOne.writeToNameWhenReady(TEST, TEST_2, PORT_TEST_2)
+        hubTwo.writeToNameWhenReady(TEST, TEST_2, PORT_TEST_2)
         while hubOne.getAll(TEST_2) == [] or hubTwo.getAll(TEST_2) == []:
             pass
         self.assertEqual(hubOne.getAll(TEST), [PORT_TEST])
@@ -146,15 +146,18 @@ class TestTransportMethods(unittest.TestCase):
     def stressHighSpeed(self, num=10, bidirectional=False, size=256):
         hubOne, hubTwo = initialize(size=size)
         for i in range(num):
-            hubOne.writeToName(TEST, 'test{}'.format(i), TEXT)
+            hubOne.writeToNameWhenReady(TEST, 'test{}'.format(i), TEXT)
             if bidirectional:
-                hubTwo.writeToName(TEST, 'test{}'.format(i), TEXT)
+                hubTwo.writeToNameWhenReady(TEST, 'test{}'.format(i), TEXT)
         self.assertEqual(len(hubOne.transports), len(hubTwo.transports))
-        while hubTwo.getAll('test{}'.format(num - 1)) == []:
-            pass
-        if bidirectional:
-            while hubOne.getAll('test{}'.format(num - 1)) == []:
+
+        for i in range(num):
+            while hubTwo.getAll('test{}'.format(i)) == []:
                 pass
+            if bidirectional:
+                while hubOne.getAll('test{}'.format(i)) == []:
+                    pass
+
         for i in range(num):
             if bidirectional:
                 self.assertEqual(hubOne.getAll('test{}'.format(i)), [TEXT])
@@ -193,9 +196,9 @@ class TestTransportMethods(unittest.TestCase):
                 pass
 
         for i in range(messages):
-            hubOne.writeAll('Test{}'.format(i), TEXT)
+            hubOne.writeAllWhenReady('Test{}'.format(i), TEXT)
             if bidirectional:
-                hubTwo.writeAll('Test{}'.format(i), TEXT)
+                hubTwo.writeAllWhenReady('Test{}'.format(i), TEXT)
 
         while hubTwo.getAll('Test{}'.format(messages - 1)) != [TEXT] * numConn:
             pass

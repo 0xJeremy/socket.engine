@@ -76,11 +76,13 @@ class TestTransportMethods(unittest.TestCase):
         for i in range(messages):
             hubOne.writeAll('Test{}'.format(i), TEXT)
             hubTwo.writeAll('Test{}'.format(i), TEXT)
-        while (
-            hubOne.getAll('Test{}'.format(messages - 1)) != [TEXT] * stress
-            or hubTwo.getAll('Test{}'.format(messages - 1)) != [TEXT] * stress
-        ):
-            pass
+
+        for i in range(messages):
+            while (
+                hubOne.getAll('Test{}'.format(i)) != [TEXT] * stress
+                or hubTwo.getAll('Test{}'.format(i)) != [TEXT] * stress
+            ):
+                pass
 
         for i in range(messages):
             self.assertEqual(hubOne.getAll('Test{}'.format(i)), [TEXT] * stress)

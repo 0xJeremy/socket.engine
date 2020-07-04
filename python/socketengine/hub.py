@@ -91,6 +91,9 @@ class Hub:
     ### INTERFACE, GETTERS ###
     ##########################
 
+    def canWriteAll(self):
+        return all([transport.canWrite() for transport in self.transports])
+
     def getAll(self, channel):
         data = []
         for transport in self.transports:
@@ -129,6 +132,20 @@ class Hub:
     ##########################
     ### INTERFACE, WRITERS ###
     ##########################
+
+    def writeAllWhenReady(self, channel, data):
+        while not self.canWriteAll():
+            pass
+        self.writeAll(channel, data)
+        while not self.canWriteAll():
+            pass
+
+    def writeToNameWhenReady(self, name, channel, data):
+        while not self.canWriteAll():
+            pass
+        self.writeToName(name, channel, data)
+        while not self.canWriteAll():
+            pass
 
     def writeAll(self, channel, data):
         for transport in self.transports:
