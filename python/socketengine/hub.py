@@ -82,6 +82,10 @@ class Hub:
         self.transports.append(transport)
         self.transportEvent.set()
 
+    #################
+    ### INTERFACE ###
+    #################
+
     def connect(self, name, addr, port):
         self.__addTransport(addr, port, True, name=name)
         return self
@@ -110,6 +114,14 @@ class Hub:
         data = []
         for transport in self.transports:
             tmp = transport.get(channel)
+            if tmp is not None:
+                data.append(tmp)
+        return data
+
+    def getImageAll(self):
+        data = []
+        for transport in self.transports:
+            tmp = transport.getImage()
             if tmp is not None:
                 data.append(tmp)
         return data

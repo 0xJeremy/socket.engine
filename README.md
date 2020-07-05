@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/0xJeremy/socket.engine/master/graphics/Logo.png">
+  <img src="graphics/Logo.png">
 </div>
 
 ## Installation

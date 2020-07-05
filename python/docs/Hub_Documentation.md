@@ -12,123 +12,127 @@ This library requires Python3. It was tested extensively on Python 3.7.5 with Ub
 
 ## How to use
 
-```python
-# Computer 1:
-from socketengine import Hub
+<div align="center">
+  <img src="../../graphics/hub_example_1.png" style="width:80%">
+</div>
 
-h = Hub(port=8080)
+<div align="center">
+  <img src="../../graphics/hub_example_2.png" style="width:80%">
+</div>
 
-while h.transports == []:
-	pass
+## Documentation — Hub
 
-h.writeAll("test", "Hubs are connected")
-h.close()
-```
-
-```python
-# Computer 2:
-from socketengine import Hub
-
-h = Hub()
-
-h.connect('hello!', '127.0.0.1', 8080)
-
-print(h.getAll('test'))
-
-h.close()
-```
-
-## Documentation
-
-#### Hub
-
-Hub Constructor:
+#### Hub Constructor
 
 ```
-Hub(port=None, timeout=2, size=256)
-	port = Port Transport to use with socket
-	timeout = Sets the standard timeout of a socket (in seconds)
-	size = Default read size of socket
+Hub(port, timeout, size)
+	port = (Optional) (Number) Port Transport to use with socket
+	timeout = (Optional) (Number) Sets the standard timeout of a socket (in seconds)
+	size = (Optional) (Number) Default read size of socket
 ```
 
-Hub Methods:
+#### Opening Connections
 
 ```
-Hub.connect(name, addr, port):
-	Connects to another port. The Transport is named 'name', and the target is the (addr, port) specified.
-
-Hub.close():
-	Closes the Hub and all Transports. Also stops all threads.
-
-Hub.getConnections():
-	Returns all the Transports to the Hub as 'Transport' objects.
-
-Hub.getAll(channel):
-	Reads all data from a specified channel. Returns a list of all responses (or [] if no responses)
-
-Hub.getByName(name, channel):
-	Reads all data from a named socket by channel. Returns a list of all responses (or [] if no responses)
-
-Hub.getLocal(channel):
-	Reads all data from locally hosted sockets. Returns a list of all responses (or [] if no responses)
-
-Hub.getRemote(channel):
-	Reads all data from remote hosted sockets. Returns a list of all responses (or [] if no respones)
-
-Hub.writeAll(channel, data):
-	Writes to all connected Hubs via the 'channel' with data.
-
-Hub.writeToName(name, channel, data):
-	Writes to all connected sockets with the specified name.
-
-Hub.writeToLocal(channel, data):
-	Writes to all locally hosted sockets.
-
-Hub.writeToRemote(channel, data):
-	Writes to all remotely hosted sockets.
-
-Hub.writeImageAll(data):
-	Writes an image to all connected sockets.
-
-Hub.writeImageToName(name, data):
-	Writes an image to all sockets with a specified name.
-
-Hub.writeImageToLocal(data):
-	Writes an image to all locally hosted sockets.
-
-Hub.writeImageToRemote(data):
-	Writes an image to all remotely hosted sockets.
+Hub.connect(name, addr, port)
+	name = (Required) (String)
+	addr = (Required) (String)
+	port = (Required) (Number)
+	Connects to a remote Hub or Transport object, and names the connection. This is a BLOCKING action until the connection is made.
 ```
 
-#### Transport
-
-Transport Constructor:
+#### Standard Interface
 
 ```
-Transport(name, timeout=2, size=256)
-	name = the name of the socket
-	timeout = Sets the standard timeout of a socket (in seconds)
-	size = Default read size of socket
+Hub.close()
+	Closes the Hub and all associated Transport objects (both local and remote)
+
+Hub.getConnections()
+	Returns a list of all Transport objects currently controlled by the Hub
+
+Hub.waitForTransport()
+	If no Transports exist, blocks until a Transport has been opened and connected. Otherwise blocks until any current Transport connections are done forming (note: does not wait for Transport operations to finish other than opening the connection)
+
+Hub.canWriteAll()
+	Returns True if all Transport objects and write, False otherwise
+
+Hub.getAll(channel)
+	channel = (Required) (String)
+	Returns a list of all data received over the specified channel from all Transports. Returns an empty list if no data exists.
+
+Hub.getImageAll()
+	Returns a list of all images received by Transports. Returns an empty list if no data exists.
+
+Hub.getByName(name, channel)
+	name = (Required) (String)
+	Returns a list of all data received over a specified channel of Transports with the same name. Returns an empty list if no data exists.
+
+Hub.getLocal(channel)
+	channel = (Required) (String)
+	Returns a list of all data received over a specified channel by Transports initiated by the Hub. Returns an empty list if no data exists.
+
+Hub.getRemote(channel)
+	channel = (Required) (String)
+	Returns a list of all data received over a specified channel by Transports initiated by a remote Hub. Returns an empty list if no data exists.
+
+Hub.writeAll(channel, data)
+	channel = (Required) (String)
+	data = (Required) (String)
+	Writes the specified string to all connected Transports on the specified channel.
+
+Hub.writeToName(name, channel, data)
+	name = (Required) (String)
+	channel = (Required) (String)
+	data = (Required) (String)
+	Writes the specified string to all connected Transports on the specified channel if the Transport name matches.
+
+Hub.writeToLocal(channel, data)
+	channel = (Required) (String)
+	data = (Required) (String)
+	Writes the specified string to all locally initiated Transports on the specified channel.
+
+Hub.writeToRemote(channel, data)
+	channel = (Required) (String)
+	data = (Required) (String)
+	Writes the specified string to all remotely initiated Transports on the specified channel.
+
+Hub.writeImageAll(data)
+	data = (Required) (Numpy Image)
+	Writes the given image to all connected Transports.
+
+Hub.writeImageToName(name, data)
+	name = (Required) (String)
+	data = (Required) (Numpy Image)
+	Writes the given image to all Transports with the specified name.
+
+Hub.writeImageToLocal(data)
+	data = (Required) (Numpy Image)
+	Writes the given image to all Transports initiated locally.
+
+Hub.writeImageToRemote(data)
+	data = (Required) (Numpy Image)
+	Writes the given image to all Transports initiated remotely.
 ```
 
-Transport Methods:
+#### Synchronous Interface
 
+NOTE: These are all blocking actions until they complete.
 ```
-Transport.connect(name, addr, port):
-	Initiates a Transport to a remote Hub. Names the socket with the given 'name', and connects to the (addr, port).
-	
-Transport.get(channel):
-	Gets data from a channel if it exists. Returns None if no data exists on channel.
-	
-Transport.getImage():
-	Gets an from the socket if one exists. Returns None if one does not exist.
-	
-Transport.write(channel, data):
-	Writes data over a specified channel with the given data.
-	
-Transport.writeImage(data):
-	Writes an image over the socket. Optimized for images specifically.
-	
-Transport.close():
-	Closes the socket Transport.
+Hub.writeAllWhenReady(channel, data)
+	channel = (Required) (String)
+	data = (Required) (String)
+	Will block until all Transports are able to write, and then writes to all Transports on the specified channel with the specified data.
+
+Hub.writeToNameWhenReady(name, channel, data)
+	name = (Required) (String)
+	channel = (Required) (String)
+	data = (Required) (String)
+	Will block until all Transports with the specified name are able to write, and then write to the Transports on the specified channel with the specified data.
+
+Hub.waitForGetAll(channel)
+	channel = (Required) (String)
+	Will block until all Transports have data on the specified channel, then return an array with the data from each Transport.
+
+Hub.waitForAllReady()
+	Will block until all Transports are ready (see Transport documentation for more details. This function invokes Transport.waitForReady())
 ```
