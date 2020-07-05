@@ -1,5 +1,5 @@
 import socket
-from threading import Thread
+from threading import Thread, Event
 from .engine_commons import generateSocket
 from .transport import Transport
 
@@ -16,7 +16,7 @@ from .constants import MAX_RETRIES
 ### HUB CLASS ###
 #################
 
-# pylint: disable=unused-variable, invalid-name
+# pylint: disable=unused-variable, invalid-name, too-many-public-methods
 class Hub:
     def __init__(self, port=None, timeout=TIMEOUT, size=SIZE):
         self.socket = None
@@ -28,6 +28,7 @@ class Hub:
         self.transportAddresses = []
         self.stopped = False
         self.opened = False
+        self.transportEvent = Event()
         self.__open()
         self.__start()
 
@@ -64,19 +65,25 @@ class Hub:
                 if addr not in self.transportAddresses:
                     self.transportAddresses.append(addr)
                     addr, port = addr
-                    transport = Transport(None, self.timeout, self.size)
-                    transport.receive(conn, addr, port)
-                    self.transports.append(transport)
+                    self.__addTransport(addr, port, False, connection=conn)
             except socket.timeout:
                 continue
             except OSError:
                 self.close()
 
-    def connect(self, name, addr, port):
-        transport = Transport(self.timeout, self.size)
-        transport.connect(addr, port)
-        transport.assignName(name)
+    def __addTransport(self, addr, port, localInitiation, name=None, connection=None):
+        self.transportEvent.clear()
+        transport = Transport(timeout=self.timeout, size=self.size)
+        if localInitiation:
+            transport.connect(addr, port)
+            transport.assignName(name)
+        else:
+            transport.receive(connection, addr, port)
         self.transports.append(transport)
+        self.transportEvent.set()
+
+    def connect(self, name, addr, port):
+        self.__addTransport(addr, port, True, name=name)
         return self
 
     def close(self):
@@ -88,6 +95,9 @@ class Hub:
 
     def getConnections(self):
         return self.transports
+
+    def waitForTransport(self):
+        return self.transportEvent.wait()
 
     ##########################
     ### INTERFACE, GETTERS ###
@@ -135,20 +145,6 @@ class Hub:
     ### INTERFACE, WRITERS ###
     ##########################
 
-    def writeAllWhenReady(self, channel, data):
-        while not self.canWriteAll():
-            pass
-        self.writeAll(channel, data)
-        while not self.canWriteAll():
-            pass
-
-    def writeToNameWhenReady(self, name, channel, data):
-        while not self.canWriteAll():
-            pass
-        self.writeToName(name, channel, data)
-        while not self.canWriteAll():
-            pass
-
     def writeAll(self, channel, data):
         for transport in self.transports:
             transport.write(channel, data)
@@ -194,3 +190,27 @@ class Hub:
             if transport.type == transport.TYPE_LOCAL:
                 transport.writeImg(data)
         return self
+
+    #############################
+    ### SYNCHRONOUS INTERFACE ###
+    #############################
+
+    def writeAllWhenReady(self, channel, data):
+        for transport in self.transports:
+            transport.waitForReady()
+        self.writeAll(channel, data)
+
+    def writeToNameWhenReady(self, name, channel, data):
+        for transport in self.transports:
+            if transport.name == name:
+                transport.waitForReady()
+        self.writeToName(name, channel, data)
+
+    def waitForGetAll(self, channel):
+        for transport in self.transports:
+            transport.waitForChannel(channel)
+        return self.getAll(channel)
+
+    def waitForAllReady(self):
+        for transport in self.transports:
+            transport.waitForReady()

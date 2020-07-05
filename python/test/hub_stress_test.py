@@ -7,33 +7,23 @@ from .common import TIMEOUT, HOME, TEXT, start, finish
 
 # pylint: disable=unused-variable
 class TestTransportMethods(unittest.TestCase):
-    # pylint: disable=too-many-branches
     def multiTransports(self, numConn=10, messages=10, bidirectional=False, size=256):
         hubOne = Hub(timeout=TIMEOUT, size=size)
         hubTwo = Hub(timeout=TIMEOUT, size=size)
         for i in range(numConn):
             hubOne.connect('Test{}'.format(i), HOME, hubTwo.port)
 
-        while len(hubOne.transports) != len(hubTwo.transports):
-            pass
-        for transport in hubOne.transports:
-            while not transport.opened:
-                pass
-        for transport in hubTwo.transports:
-            while not transport.opened:
-                pass
+        hubOne.waitForAllReady()
+        hubTwo.waitForAllReady()
 
         for i in range(messages):
-            hubOne.writeAll('Test{}'.format(i), TEXT)
+            hubOne.writeAllWhenReady('Test{}'.format(i), TEXT)
             if bidirectional:
-                hubTwo.writeAll('Test{}'.format(i), TEXT)
+                hubTwo.writeAllWhenReady('Test{}'.format(i), TEXT)
 
-        for i in range(messages):
-            while hubTwo.getAll('Test{}'.format(i)) != [TEXT] * numConn:
-                time.sleep(0.1)
-            if bidirectional:
-                while hubOne.getAll('Test{}'.format(i)) != [TEXT] * numConn:
-                    time.sleep(0.1)
+        hubTwo.waitForGetAll('Test{}'.format(messages - 1))
+        if bidirectional:
+            hubOne.waitForGetAll('Test{}'.format(messages - 1))
 
         for i in range(messages):
             if bidirectional:
@@ -57,25 +47,17 @@ class TestTransportMethods(unittest.TestCase):
             else:
                 hubTwo.connect('Test{}'.format(i), HOME, hubOne.port)
 
-        while len(hubOne.transports) != len(hubTwo.transports):
-            time.sleep(0.1)
-        for transport in hubOne.transports:
-            while not transport.opened:
-                time.sleep(0.1)
-        for transport in hubTwo.transports:
-            while not transport.opened:
-                time.sleep(0.1)
-
+        hubOne.waitForAllReady()
+        hubTwo.waitForAllReady()
         self.assertEqual(len(hubOne.transports), len(hubTwo.transports))
         for i in range(messages):
-            hubOne.writeAll('Test{}'.format(i), TEXT)
-            hubTwo.writeAll('Test{}'.format(i), TEXT)
+            hubOne.writeAllWhenReady('Test{}'.format(i), TEXT)
+            hubTwo.writeAllWhenReady('Test{}'.format(i), TEXT)
 
         for i in range(messages):
-            while hubOne.getAll('Test{}'.format(i)) != [TEXT] * stress:
-                time.sleep(0.1)
-            while hubTwo.getAll('Test{}'.format(i)) != [TEXT] * stress:
-                time.sleep(0.1)
+            time.sleep(0.01)
+            hubOne.waitForGetAll('Test{}'.format(i))
+            hubTwo.waitForGetAll('Test{}'.format(i))
 
         for i in range(messages):
             self.assertEqual(hubOne.getAll('Test{}'.format(i)), [TEXT] * stress)
@@ -93,12 +75,11 @@ class TestTransportMethods(unittest.TestCase):
         self.stressTest(stress=10)
         finish('Stress Test (v2) Passed')
 
-    def testStressTestV3(self):
-        start()
-        self.stressTest(stress=25)
-        finish('Stress Test (v3) Passed')
+    # def testStressTestV3(self):
+    #     start()
+    #     self.stressTest(stress=25)
+    #     finish('Stress Test (v3) Passed')
 
-    # pylint: disable=too-many-branches
     def multiHubStresstest(self, stress=5, messages=1000):
         hubs = []
         for i in range(stress):
@@ -110,13 +91,7 @@ class TestTransportMethods(unittest.TestCase):
                 hubTwo.connect('Test', HOME, hubOne.port)
 
         for hub in hubs:
-            for transport in hub.transports:
-                while not transport.opened:
-                    pass
-            while len(hub.transports) != 2 * stress:
-                pass
-
-        for hub in hubs:
+            hub.waitForAllReady()
             self.assertEqual(len(hub.transports), 2 * stress)
 
         for hub in hubs:
@@ -124,10 +99,7 @@ class TestTransportMethods(unittest.TestCase):
                 hub.writeAll('Test{}'.format(i), TEXT)
 
         for hub in hubs:
-            while hub.getAll('Test{}'.format(messages - 1)) != [TEXT] * 2 * stress:
-                pass
-
-        for hub in hubs:
+            hub.waitForGetAll('Test{}'.format(messages - 1))
             for i in range(messages):
                 self.assertEqual(hub.getAll('Test{}'.format(i)), [TEXT] * 2 * stress)
 
@@ -139,15 +111,15 @@ class TestTransportMethods(unittest.TestCase):
         self.multiHubStresstest()
         finish('Multi-Host Stress Test (v1) Passed')
 
-    def multihostStresstestV2(self):
+    def testMultihostStresstestV2(self):
         start()
         self.multiHubStresstest(stress=10)
         finish('Multi-Host Stress Test (v2) Passed')
 
-    def multihostStresstestV3(self):
-        start()
-        self.multiHubStresstest(stress=10, messages=5000)
-        finish('Multi-Host Stress Test (v3) Passed')
+    # def testMultihostStresstestV3(self):
+    #     start()
+    #     self.multiHubStresstest(stress=10, messages=5000)
+    #     finish('Multi-Host Stress Test (v3) Passed')
 
 
 if __name__ == '__main__':

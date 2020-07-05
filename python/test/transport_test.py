@@ -251,6 +251,26 @@ class TestTransportMethods(unittest.TestCase):
         transportTwo.close()
         finish('Passed image write / get with compression')
 
+    def testRegisterCallback(self):
+        start()
+        transportOne = Transport()
+        transportTwo = Transport()
+        Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
+        transportTwo.connect(HOME, transportOne.port)
+        transportOne.waitForReady()
+        transportTwo.waitForReady()
+
+        def callback(transport, channel, data):
+            self.assertEqual(transport, transportOne)
+            self.assertEqual(channel, CHANNEL)
+            self.assertEqual(data, TEST)
+
+        transportOne.registerCallback(CHANNEL, callback)
+        transportTwo.write(CHANNEL, TEST)
+        transportOne.close()
+        transportTwo.close()
+        finish('Passed callback registration')
+
 
 if __name__ == '__main__':
     unittest.main()

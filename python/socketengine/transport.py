@@ -34,6 +34,7 @@ class Transport:
     # fmt: on
         self.name = name
         self.channels = {}
+        self.callbacks = {}
         self.timeout = timeout
         self.size = size
         self.compress = useCompression
@@ -100,8 +101,7 @@ class Transport:
     def __sendWaitingMessages(self):
         # pylint: disable=unused-variable
         for i in range(len(self.waitingBuffer)):
-            message = self.waitingBuffer.pop(0)
-            self.__sendAll(message)
+            self.__sendAll(self.waitingBuffer.pop(0))
 
     def __processMessage(self, buff):
         messages = buff.split(DELIMITER)
@@ -125,6 +125,8 @@ class Transport:
                 self.channels[message.type] = message.data
             if message.type == self.channelListener:
                 self.channelEvent.set()
+            if self.callbacks.get(message.type) is not None:
+                self.callbacks[message.type](self, message.type, message.data)
             self.__cascade(message)
             messages[i] = b''
 
@@ -225,6 +227,7 @@ class Transport:
     def assignName(self, name):
         self.name = name
         self.__writeMeta(NAME_CONN, self.name)
+        self.nameEvent.set()
 
     def get(self, channel):
         with self.parseLock:
@@ -235,12 +238,6 @@ class Transport:
 
     def canWrite(self):
         return (self.writeAvailable and self.opened and not self.stopped) or self.enableBuffer
-
-    def waitForReady(self):
-        if self.enableBuffer:
-            return True
-        self.openEvent.wait()
-        return self.writeAvailableEvent.wait()
 
     def write(self, channel, data, requireAck=False):
         message = SocketMessage()
@@ -265,9 +262,19 @@ class Transport:
             pass
         self.__close()
 
+    def registerCallback(self, channel, function):
+        self.callbacks[channel] = function
+
     #############################
     ### SYNCHRONOUS INTERFACE ###
     #############################
+
+    def waitForReady(self):
+        if self.enableBuffer:
+            return True
+        self.openEvent.wait()
+        while not self.writeAvailableEvent.isSet():
+            self.writeAvailableEvent.wait()
 
     def waitForClose(self):
         return self.closeEvent.wait()
@@ -289,10 +296,10 @@ class Transport:
     def waitForImage(self):
         return self.waitForChannel(IMAGE)
 
-    def writeImageSync(self, data):
-        self.writeImage(data, requireAck=True)
-        return self.writeAvailableEvent.wait()
-
     def writeSync(self, channel, data):
         self.write(channel, data, requireAck=True)
+        return self.writeAvailableEvent.wait()
+
+    def writeImageSync(self, data):
+        self.writeImage(data, requireAck=True)
         return self.writeAvailableEvent.wait()

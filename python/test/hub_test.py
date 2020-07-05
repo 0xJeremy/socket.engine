@@ -27,8 +27,8 @@ class TestTransportMethods(unittest.TestCase):
         self.assertTrue(hubTwo.opened)
         self.assertFalse(hubTwo.stopped)
         hubOne.connect(CHANNEL, HOME, hubTwo.port)
-        while len(hubOne.transports) == 0 or len(hubTwo.transports) == 0:
-            pass
+        hubOne.waitForTransport()
+        hubTwo.waitForTransport()
         self.assertEqual(len(hubOne.transports), 1)
         self.assertEqual(len(hubTwo.transports), 1)
         hubOne.close()
@@ -44,28 +44,25 @@ class TestTransportMethods(unittest.TestCase):
         hubOne = Hub(timeout=TIMEOUT)
         hubTwo = Hub(timeout=TIMEOUT)
         hubOne.connect(CHANNEL, HOME, hubTwo.port)
-        while len(hubOne.transports) == 0 or len(hubTwo.transports) == 0:
-            pass
+        hubOne.waitForTransport()
+        hubTwo.waitForTransport()
         self.assertEqual(len(hubOne.transports), 1)
         self.assertEqual(len(hubTwo.transports), 1)
         transportOne = hubOne.transports[0]
         transportTwo = hubTwo.transports[0]
-        while transportOne.stopped or transportTwo.stopped:
-            pass
+        transportOne.waitForReady()
+        transportTwo.waitForReady()
         self.assertTrue(transportOne.opened)
         self.assertFalse(transportOne.stopped)
         self.assertTrue(transportTwo.opened)
         self.assertFalse(transportTwo.stopped)
-        while not transportOne.name or not transportTwo.name:
-            pass
+        transportTwo.waitForName()
         self.assertEqual(transportOne.name, CHANNEL)
         self.assertEqual(transportTwo.name, CHANNEL)
         self.assertEqual(transportOne.addr, HOME)
         self.assertEqual(transportTwo.addr, HOME)
         hubOne.close()
         hubTwo.close()
-        while transportOne.opened or transportTwo.opened:
-            pass
         self.assertFalse(transportOne.opened)
         self.assertTrue(transportOne.stopped)
         self.assertFalse(transportTwo.opened)
@@ -81,8 +78,7 @@ class TestTransportMethods(unittest.TestCase):
         self.assertEqual(hubTwo.getAll(TEST), [])
         self.assertEqual(hubTwo.getAll(TEST_2), [])
         hubOne.connect(TEST, HOME, hubTwo.port)
-        while len(hubTwo.transports) == 0:
-            pass
+        hubTwo.waitForTransport()
         self.assertEqual(hubOne.getAll(TEST), [])
         self.assertEqual(hubOne.getAll(TEST_2), [])
         self.assertEqual(hubTwo.getAll(TEST), [])
@@ -100,18 +96,15 @@ class TestTransportMethods(unittest.TestCase):
         self.assertEqual(hubTwo.getAll(TEST), [])
         self.assertEqual(hubTwo.getAll(TEST_2), [])
         hubOne.connect(TEST, HOME, hubTwo.port)
-        while len(hubTwo.transports) == 0:
-            pass
+        hubTwo.waitForTransport()
         hubOne.writeToNameWhenReady(TEST, TEST, PORT_TEST)
-        while hubTwo.getAll(TEST) == []:
-            pass
+        hubTwo.waitForGetAll(TEST)
         self.assertEqual(hubOne.getAll(TEST), [])
         self.assertEqual(hubOne.getAll(TEST_2), [])
         self.assertEqual(hubTwo.getAll(TEST), [PORT_TEST])
         self.assertEqual(hubTwo.getAll(TEST_2), [])
         hubOne.writeToNameWhenReady(TEST, TEST_2, PORT_TEST_2)
-        while hubTwo.getAll(TEST_2) == []:
-            pass
+        hubTwo.waitForGetAll(TEST_2)
         self.assertEqual(hubOne.getAll(TEST), [])
         self.assertEqual(hubOne.getAll(TEST_2), [])
         self.assertEqual(hubTwo.getAll(TEST), [PORT_TEST])
@@ -129,16 +122,16 @@ class TestTransportMethods(unittest.TestCase):
         self.assertEqual(hubTwo.getAll(TEST_2), [])
         hubOne.writeToNameWhenReady(TEST, TEST, PORT_TEST)
         hubTwo.writeToNameWhenReady(TEST, TEST, PORT_TEST)
-        while hubOne.getAll(TEST) == [] or hubTwo.getAll(TEST) == []:
-            pass
+        hubOne.waitForGetAll(TEST)
+        hubTwo.waitForGetAll(TEST)
         self.assertEqual(hubOne.getAll(TEST), [PORT_TEST])
         self.assertEqual(hubOne.getAll(TEST_2), [])
         self.assertEqual(hubTwo.getAll(TEST), [PORT_TEST])
         self.assertEqual(hubTwo.getAll(TEST_2), [])
         hubOne.writeToNameWhenReady(TEST, TEST_2, PORT_TEST_2)
         hubTwo.writeToNameWhenReady(TEST, TEST_2, PORT_TEST_2)
-        while hubOne.getAll(TEST_2) == [] or hubTwo.getAll(TEST_2) == []:
-            pass
+        hubOne.waitForGetAll(TEST_2)
+        hubTwo.waitForGetAll(TEST_2)
         self.assertEqual(hubOne.getAll(TEST), [PORT_TEST])
         self.assertEqual(hubOne.getAll(TEST_2), [PORT_TEST_2])
         self.assertEqual(hubTwo.getAll(TEST), [PORT_TEST])
@@ -156,11 +149,9 @@ class TestTransportMethods(unittest.TestCase):
         self.assertEqual(len(hubOne.transports), len(hubTwo.transports))
 
         for i in range(num):
-            while hubTwo.getAll('test{}'.format(i)) == []:
-                pass
+            hubTwo.waitForGetAll('test{}'.format(i))
             if bidirectional:
-                while hubOne.getAll('test{}'.format(i)) == []:
-                    pass
+                hubOne.waitForGetAll('test{}'.format(i))
 
         for i in range(num):
             if bidirectional:
@@ -179,37 +170,28 @@ class TestTransportMethods(unittest.TestCase):
         self.stressHighSpeed(bidirectional=True)
         finish('Bidirectional High Speed Test Passed')
 
-    def testOnewayHighThroughput(self):
-        start()
-        self.stressHighSpeed(num=1000, size=2048)
-        finish('One-way High Throughput Test Passed')
+    # def testOnewayHighThroughput(self):
+    #     start()
+    #     self.stressHighSpeed(num=1000, size=2048)
+    #     finish('One-way High Throughput Test Passed')
 
-    # pylint: disable=too-many-branches
     def multiTransports(self, numConn=10, messages=10, bidirectional=False, size=256):
         hubOne = Hub(timeout=TIMEOUT, size=size)
         hubTwo = Hub(timeout=TIMEOUT, size=size)
         for i in range(numConn):
             hubOne.connect('Test{}'.format(i), HOME, hubTwo.port)
 
-        while len(hubOne.transports) != len(hubTwo.transports):
-            pass
-        for transport in hubOne.transports:
-            while not transport.opened:
-                pass
-        for transport in hubTwo.transports:
-            while not transport.opened:
-                pass
+        hubOne.waitForAllReady()
+        hubTwo.waitForAllReady()
 
         for i in range(messages):
             hubOne.writeAllWhenReady('Test{}'.format(i), TEXT)
             if bidirectional:
                 hubTwo.writeAllWhenReady('Test{}'.format(i), TEXT)
 
-        while hubTwo.getAll('Test{}'.format(messages - 1)) != [TEXT] * numConn:
-            pass
+        hubTwo.waitForGetAll('Test{}'.format(messages - 1))
         if bidirectional:
-            while hubOne.getAll('Test{}'.format(messages - 1)) != [TEXT] * numConn:
-                pass
+            hubOne.waitForGetAll('Test{}'.format(messages - 1))
 
         for i in range(messages):
             if bidirectional:
@@ -225,7 +207,7 @@ class TestTransportMethods(unittest.TestCase):
 
     def testMultitransportsBidirectional(self):
         start()
-        self.multiTransports(bidirectional=True, size=2048)
+        self.multiTransports(bidirectional=True)
         finish('Multi-Connection Bidirectional Test Passed')
 
 
