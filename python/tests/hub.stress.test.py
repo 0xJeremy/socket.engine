@@ -64,13 +64,13 @@ class TestTransportMethods(unittest.TestCase):
                 hubTwo.connect('Test{}'.format(i), HOME, hubOne.port)
 
         while len(hubOne.transports) != len(hubTwo.transports):
-            pass
+            time.sleep(0.1)
         for transport in hubOne.transports:
             while not transport.opened:
-                pass
+                time.sleep(0.1)
         for transport in hubTwo.transports:
             while not transport.opened:
-                pass
+                time.sleep(0.1)
 
         self.assertEqual(len(hubOne.transports), len(hubTwo.transports))
         for i in range(messages):
@@ -78,11 +78,10 @@ class TestTransportMethods(unittest.TestCase):
             hubTwo.writeAll('Test{}'.format(i), TEXT)
 
         for i in range(messages):
-            while (
-                hubOne.getAll('Test{}'.format(i)) != [TEXT] * stress
-                or hubTwo.getAll('Test{}'.format(i)) != [TEXT] * stress
-            ):
-                pass
+            while hubOne.getAll('Test{}'.format(i)) != [TEXT] * stress:
+                time.sleep(0.1)
+            while hubTwo.getAll('Test{}'.format(i)) != [TEXT] * stress:
+                time.sleep(0.1)
 
         for i in range(messages):
             self.assertEqual(hubOne.getAll('Test{}'.format(i)), [TEXT] * stress)

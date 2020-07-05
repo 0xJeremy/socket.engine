@@ -55,12 +55,8 @@ class Hub:
         return self
 
     def __run(self):
-        tmp = ''
         while True:
             if self.stopped:
-                for transport in self.transports:
-                    transport.close()
-                self.socket.close()
                 return
 
             try:
@@ -73,6 +69,8 @@ class Hub:
                     self.transports.append(transport)
             except socket.timeout:
                 continue
+            except OSError:
+                self.close()
 
     def connect(self, name, addr, port):
         transport = Transport(self.timeout, self.size)
@@ -81,8 +79,11 @@ class Hub:
         return self
 
     def close(self):
-        self.opened = False
         self.stopped = True
+        for transport in self.transports:
+            transport.close()
+        self.socket.close()
+        self.opened = False
 
     def getConnections(self):
         return self.transports

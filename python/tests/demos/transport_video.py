@@ -51,7 +51,9 @@ def getVideo():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='socket.engine Hub Video tester')
     parser.add_argument('-s', '--send', help='Begins streaming video Hub', action='store_true')
-    parser.add_argument('-g', '--get', help='Begins retrieving video Hub stream', action='store_true')
+    parser.add_argument(
+        '-g', '--get', help='Begins retrieving video Hub stream', action='store_true',
+    )
     parser.add_argument('-c', '--color', help='Sends in color', action='store_true')
     args = parser.parse_args()
     if args.send is True and args.get is True:

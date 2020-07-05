@@ -392,7 +392,9 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Automated testing for the socket.engine library")
     parser.add_argument("-n", "--num", help="The number of times each test should run", type=int)
-    parser.add_argument("-d", "--debug", help="Turns on extra debugging messages", action="store_true")
+    parser.add_argument(
+        "-d", "--debug", help="Turns on extra debugging messages", action="store_true",
+    )
     parser.add_argument(
         "-s", "--sleep", help="Sleep timer between actions (default {})".format(DELAY), type=float,
     )

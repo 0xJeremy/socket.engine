@@ -10,7 +10,19 @@ sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
 
 # pylint: disable=wrong-import-position, no-member, too-many-branches, no-name-in-module
 from socketengine import Hub
-from common import TIMEOUT, CHANNEL, TEST, TEST_2, PORT_TEST, PORT_TEST_2, HOME, TEXT, start, finish, initialize
+from common import (
+    TIMEOUT,
+    CHANNEL,
+    TEST,
+    TEST_2,
+    PORT_TEST,
+    PORT_TEST_2,
+    HOME,
+    TEXT,
+    start,
+    finish,
+    initialize,
+)
 
 # pylint: disable=unused-variable
 class TestTransportMethods(unittest.TestCase):

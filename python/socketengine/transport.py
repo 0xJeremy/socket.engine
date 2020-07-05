@@ -1,6 +1,8 @@
 import socket
-import zlib
+import time
 from threading import Thread, Lock
+from zlib import compress, decompress
+from zlib import error as zlibError
 from google import protobuf
 from .common import encodeImg, decodeImg, generateSocket
 from .message_pb2 import SocketMessage
@@ -12,7 +14,8 @@ from .message_pb2 import SocketMessage
 from .constants import ACK, IMAGE, TIMEOUT, SIZE
 from .constants import CLOSING, NAME_CONN
 
-DELIMITER = b'xxxxxx'
+DELIMITER = b'\0\0\0'
+WAIT_TIMEOUT = 10
 
 ###############################################################
 
@@ -25,12 +28,12 @@ class Transport:
     TYPE_LOCAL = 1
     TYPE_REMOTE = 2
 
-    def __init__(self, name=None, timeout=TIMEOUT, size=SIZE, compress=False, requireAck=False, enableBuffer=True):
+    def __init__(self, name=None, timeout=TIMEOUT, size=SIZE, useCompression=False, requireAck=False, enableBuffer=False):
         self.name = name
         self.channels = {}
         self.timeout = timeout
         self.size = size
-        self.compress = compress
+        self.compress = useCompression
         self.writeAvailable = True
         self.stopped = False
         self.opened = False
@@ -41,7 +44,8 @@ class Transport:
         self.ackRequired = requireAck
         self.enableBuffer = enableBuffer
         self.waitingBuffer = []
-        self.lock = Lock()
+        self.parseLock = Lock()
+        self.writeLock = Lock()
 
     def receive(self, socketConnection, addr, port):
         self.socket = socketConnection
@@ -60,20 +64,25 @@ class Transport:
 
     def __run(self):
         tmp = b''
+        foundDelimiter = False
         while True:
             if self.stopped:
-                self.socket.close()
                 return
 
             try:
-                tmp += self.socket.recv(self.size)
+                read = self.socket.recv(self.size)
+                if DELIMITER in tmp[-3:] + read:
+                    foundDelimiter = True
+                tmp += read
             except socket.timeout:
                 continue
             except OSError:
-                self.close()
+                self.__close()
 
-            if tmp != b'':
-                tmp = self.__processMessage(tmp)
+            if tmp != b'' and foundDelimiter:
+                with self.parseLock:
+                    tmp = self.__processMessage(tmp)
+                    foundDelimiter = False
 
             self.__sendWaitingMessages()
 
@@ -84,26 +93,26 @@ class Transport:
             self.__sendAll(message)
 
     def __processMessage(self, tmp):
+        data = tmp.split(DELIMITER)
         if self.compress:
-            try:
-                data = zlib.decompress(tmp).split(DELIMITER)
-            except zlib.error:
-                data = tmp.split(DELIMITER)
-        else:
-            data = tmp.split(DELIMITER)
+            for i in range(len(data)):
+                try:
+                    data[i] = decompress(data[i])
+                except zlibError:
+                    continue
 
         for i in range(len(data)):
-            msg = SocketMessage()
+            message = SocketMessage()
             try:
-                msg.ParseFromString(data[i])
+                message.ParseFromString(data[i])
             except protobuf.message.DecodeError:
                 continue
 
-            if msg.type == IMAGE:
-                self.channels[IMAGE] = decodeImg(msg.data)
-            elif msg.data != b'' and msg.data != '':
-                self.channels[msg.type] = msg.data
-            self.__cascade(msg)
+            if message.type == IMAGE:
+                self.channels[IMAGE] = decodeImg(message.data)
+            elif message.data != '':
+                self.channels[message.type] = message.data
+            self.__cascade(message)
             data[i] = b''
 
         return b''.join(data)
@@ -122,40 +131,36 @@ class Transport:
     def __ack(self):
         self.__writeMeta(ACK)
 
-    def __writeMeta(self, meta, data=None, overrideAck=True):
-        msg = SocketMessage()
-        msg.meta = meta
+    def __writeMeta(self, meta, data=None):
+        message = SocketMessage()
+        message.meta = meta
         if data:
-            msg.data = data
-        self.__sendAll(msg, overrideAck)
+            message.data = data
+        self.__sendAll(message, overrideAck=True)
 
     def __sendAll(self, message, overrideAck=False):
-        if (not self.writeAvailable or not self.opened) and not overrideAck:
-            if self.enableBuffer:
-                self.waitingBuffer.append(message)
-            else:
+        if (self.writeAvailable or overrideAck) and self.opened:
+            with self.writeLock:
+                if self.ackRequired and not overrideAck:
+                    message.ackRequired = True
+                # pylint: disable=singleton-comparison
+                if message.ackRequired == True:
+                    self.writeAvailable = False
+
+                toSend = message.SerializeToString()
+                if self.compress:
+                    toSend = compress(toSend)
+                self.socket.sendall(toSend + DELIMITER)
+
+        else:
+            if not self.enableBuffer and message.meta != CLOSING:
                 raise RuntimeError('Unable to write; port locked or not opened')
-
-        with self.lock:
-            if self.ackRequired and not overrideAck:
-                self.writeAvailable = False
-                message.ackRequired = True
-
-            toSend = message.SerializeToString() + DELIMITER
-            if self.compress:
-                toSend = zlib.compress(toSend)
-
-            try:
-                self.socket.sendall(toSend)
-            except (ConnectionResetError, BrokenPipeError) as error:
-                if self.enableBuffer:
-                    self.waitingBuffer.append(message)
-                else:
-                    raise error
+            self.waitingBuffer.append(message)
 
     def __close(self):
-        self.opened = False
         self.stopped = True
+        self.socket.close()
+        self.opened = False
 
     #################
     ### INTERFACE ###
@@ -209,28 +214,48 @@ class Transport:
                 continue
 
     def get(self, channel):
-        with self.lock:
+        with self.parseLock:
             return self.channels[channel] if channel in self.channels.keys() else None
 
     def getImage(self):
         return self.channels[IMAGE] if IMAGE in self.channels.keys() else None
 
     def canWrite(self):
-        if self.enableBuffer:
-            return True
-        return self.writeAvailable and self.opened and not self.stopped
+        return (self.writeAvailable and self.opened and not self.stopped) or self.enableBuffer
 
-    def write(self, channel, data):
-        msg = SocketMessage()
-        msg.type = channel.replace('\n', '')
-        msg.data = data.replace('\n', '')
-        self.__sendAll(msg)
+    def write(self, channel, data, requireAck=False):
+        message = SocketMessage()
+        message.type = channel.replace('\n', '')
+        message.data = data.replace('\n', '')
+        if requireAck:
+            message.ackRequired = True
+        self.__sendAll(message)
 
-    def writeImage(self, data):
-        msg = SocketMessage()
-        msg.type = IMAGE
-        msg.data = encodeImg(data)
-        self.__sendAll(msg)
+    # Experimental function. Use carefully
+    def writeSync(self, channel, data):
+        self.write(channel, data, requireAck=True)
+        start = time.time()
+        while not self.writeAvailable:
+            if time.time() - start > WAIT_TIMEOUT:
+                raise RuntimeError('Maximum timeout exceeded waiting for acknowledgement')
+            time.sleep(0.01)
+
+    def writeImage(self, data, requireAck=False):
+        message = SocketMessage()
+        message.type = IMAGE
+        message.data = encodeImg(data)
+        if requireAck:
+            message.ackRequired = True
+        self.__sendAll(message)
+
+    # Experimental function. Use carefully
+    def writeImageSync(self, data):
+        self.writeImage(data, requireAck=True)
+        start = time.time()
+        while not self.writeAvailable:
+            if time.time() - start > WAIT_TIMEOUT:
+                raise RuntimeError('Maximum timeout exceeded waiting for acknowledgement')
+            time.sleep(0.01)
 
     def close(self):
         try:

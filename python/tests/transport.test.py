@@ -54,8 +54,8 @@ class TestTransportMethods(unittest.TestCase):
         Thread(target=transportOne.waitForConnection, args=[getUniquePort()]).start()
         transportTwo.connect(TEST, HOME, transportOne.port)
 
-        self.assertEqual(transportOne.get(CHANNEL), None)
-        self.assertEqual(transportTwo.get(CHANNEL), None)
+        self.assertIsNone(transportOne.get(CHANNEL))
+        self.assertIsNone(transportTwo.get(CHANNEL))
 
         transportOne.close()
         transportTwo.close()
@@ -74,10 +74,72 @@ class TestTransportMethods(unittest.TestCase):
             continue
         self.assertEqual(transportOne.get(CHANNEL), MESSAGE)
         self.assertEqual(transportTwo.get(CHANNEL), MESSAGE)
+        self.assertTrue(transportOne.canWrite())
+        self.assertTrue(transportTwo.canWrite())
 
         transportOne.close()
         transportTwo.close()
         finish('Passed write / get')
+
+    def testWriteAndGetWithAck(self):
+        start()
+        transportOne = Transport(requireAck=True)
+        transportTwo = Transport(requireAck=True)
+        Thread(target=transportOne.waitForConnection, args=[getUniquePort()]).start()
+        transportTwo.connect(TEST, HOME, transportOne.port)
+
+        self.assertTrue(transportOne.canWrite())
+        self.assertTrue(transportTwo.canWrite())
+        transportOne.write(CHANNEL, MESSAGE)
+        transportTwo.write(CHANNEL, MESSAGE)
+        while transportOne.get(CHANNEL) is None or transportTwo.get(CHANNEL) is None:
+            continue
+        self.assertEqual(transportOne.get(CHANNEL), MESSAGE)
+        self.assertEqual(transportTwo.get(CHANNEL), MESSAGE)
+
+        transportOne.close()
+        transportTwo.close()
+        finish('Passed write / get with ack')
+
+    def testWriteAndGetWithwriteSync(self):
+        start()
+        transportOne = Transport()
+        transportTwo = Transport()
+        Thread(target=transportOne.waitForConnection, args=[getUniquePort()]).start()
+        transportTwo.connect(TEST, HOME, transportOne.port)
+
+        self.assertTrue(transportOne.canWrite())
+        self.assertTrue(transportTwo.canWrite())
+        transportOne.writeSync(CHANNEL, MESSAGE)
+        transportTwo.writeSync(CHANNEL, MESSAGE)
+        self.assertTrue(transportOne.canWrite())
+        self.assertTrue(transportTwo.canWrite())
+        self.assertEqual(transportOne.get(CHANNEL), MESSAGE)
+        self.assertEqual(transportTwo.get(CHANNEL), MESSAGE)
+
+        transportOne.close()
+        transportTwo.close()
+        finish('Passed write / get with writeSync ack')
+
+    def testMessageCompression(self):
+        start()
+        transportOne = Transport(useCompression=True)
+        transportTwo = Transport(useCompression=True)
+        Thread(target=transportOne.waitForConnection, args=[getUniquePort()]).start()
+        transportTwo.connect(TEST, HOME, transportOne.port)
+
+        self.assertTrue(transportOne.canWrite())
+        self.assertTrue(transportTwo.canWrite())
+        transportOne.write(CHANNEL, MESSAGE)
+        transportTwo.write(CHANNEL, MESSAGE)
+        while transportOne.get(CHANNEL) is None or transportTwo.get(CHANNEL) is None:
+            pass
+        self.assertEqual(transportOne.get(CHANNEL), MESSAGE)
+        self.assertEqual(transportTwo.get(CHANNEL), MESSAGE)
+
+        transportOne.close()
+        transportTwo.close()
+        finish('Passed write / get with compression')
 
     def testOneWayCloseRemote(self):
         start()
@@ -124,6 +186,36 @@ class TestTransportMethods(unittest.TestCase):
         transportOne.close()
         transportTwo.close()
         finish('Passed image write / get')
+
+    def testImageWriteAndGetwithSync(self):
+        start()
+        transportOne = Transport()
+        transportTwo = Transport()
+        Thread(target=transportOne.waitForConnection, args=[getUniquePort()]).start()
+        transportTwo.connect(TEST, HOME, transportOne.port)
+
+        image = cv2.imread('beatles.jpg')
+        transportTwo.writeImageSync(image)
+        self.assertTrue((transportOne.getImage() == image).all())
+        transportOne.close()
+        transportTwo.close()
+        finish('Passed image write / get with writeSync')
+
+    def testImageWriteAndGetWithCompression(self):
+        start()
+        transportOne = Transport(useCompression=True)
+        transportTwo = Transport(useCompression=True)
+        Thread(target=transportOne.waitForConnection, args=[getUniquePort()]).start()
+        transportTwo.connect(TEST, HOME, transportOne.port)
+
+        image = cv2.imread('beatles.jpg')
+        transportTwo.writeImage(image)
+        while transportOne.getImage() is None:
+            time.sleep(0.01)
+        self.assertTrue((transportOne.getImage() == image).all())
+        transportOne.close()
+        transportTwo.close()
+        finish('Passed image write / get with compression')
 
 
 if __name__ == '__main__':

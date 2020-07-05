@@ -9,7 +9,7 @@ def encodeImg(img):
 
 
 def decodeImg(img):
-    return cv2.imdecode(np.frombuffer(base64.b64decode(img), dtype=np.uint8), cv2.IMREAD_ANYCOLOR)
+    return cv2.imdecode(np.frombuffer(base64.b64decode(img), dtype=np.uint8), cv2.IMREAD_ANYCOLOR,)
 
 
 def generateSocket(timeout):
