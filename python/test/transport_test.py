@@ -1,26 +1,16 @@
 #!/usr/bin/env python3
 
-import sys
-import os
 import unittest
 from threading import Thread
-import time
 import cv2
-
-PACKAGE_PARENT = ".."
-SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
-sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
-
-# pylint: disable=wrong-import-position, no-member, too-many-branches, no-name-in-module, bad-continuation
 from socketengine import Transport
-from common import MESSAGE, CHANNEL, TEST, HOME, getUniquePort, start, finish
+from .common import MESSAGE, CHANNEL, TEST, HOME, getUniquePort, start, finish
 
 # pylint: disable=unused-variable
 class TestTransportMethods(unittest.TestCase):
     def testConstructor(self):
         start()
         transport = Transport()
-        self.assertTrue(transport.canWrite)
         self.assertFalse(transport.stopped)
         self.assertFalse(transport.opened)
         finish('Passed Constructor Test')
@@ -29,10 +19,12 @@ class TestTransportMethods(unittest.TestCase):
         start()
         transportOne = Transport()
         transportTwo = Transport()
-        Thread(target=transportOne.waitForConnection, args=[getUniquePort()]).start()
-        transportTwo.connect(TEST, HOME, transportOne.port)
-        while not transportOne.opened:
-            pass
+        Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
+        transportTwo.connect(HOME, transportOne.port)
+
+        transportOne.waitForOpen()
+        transportTwo.waitForOpen()
+
         self.assertTrue(transportOne.opened)
         self.assertFalse(transportOne.stopped)
         self.assertEqual(transportOne.type, Transport.TYPE_REMOTE)
@@ -45,14 +37,14 @@ class TestTransportMethods(unittest.TestCase):
         self.assertTrue(transportOne.stopped)
         self.assertFalse(transportTwo.opened)
         self.assertTrue(transportTwo.stopped)
-        finish('Passed waitForConnection')
+        finish('Passed openForConnection')
 
     def testEmptyMessages(self):
         start()
         transportOne = Transport()
         transportTwo = Transport()
-        Thread(target=transportOne.waitForConnection, args=[getUniquePort()]).start()
-        transportTwo.connect(TEST, HOME, transportOne.port)
+        Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
+        transportTwo.connect(HOME, transportOne.port)
 
         self.assertIsNone(transportOne.get(CHANNEL))
         self.assertIsNone(transportTwo.get(CHANNEL))
@@ -61,17 +53,54 @@ class TestTransportMethods(unittest.TestCase):
         transportTwo.close()
         finish('Passed empty messages')
 
+    def testNameAssignment(self):
+        start()
+        transportOne = Transport()
+        transportTwo = Transport()
+        Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
+        transportTwo.connect(HOME, transportOne.port)
+
+        transportOne.waitForReady()
+        transportTwo.waitForReady()
+
+        self.assertIsNone(transportOne.name)
+        self.assertIsNone(transportTwo.name)
+        transportOne.assignName(TEST)
+        transportTwo.waitForName()
+        self.assertEqual(transportOne.name, TEST)
+        self.assertEqual(transportTwo.name, TEST)
+
+        transportOne.name = None
+        transportTwo.name = None
+        transportOne.nameEvent.clear()
+        transportTwo.nameEvent.clear()
+
+        self.assertIsNone(transportOne.name)
+        self.assertIsNone(transportTwo.name)
+        transportTwo.assignName(TEST)
+        transportOne.waitForName()
+        self.assertEqual(transportOne.name, TEST)
+        self.assertEqual(transportTwo.name, TEST)
+
+        transportOne.close()
+        transportTwo.close()
+        finish('Passed name assignment test')
+
     def testWriteAndGet(self):
         start()
         transportOne = Transport()
         transportTwo = Transport()
-        Thread(target=transportOne.waitForConnection, args=[getUniquePort()]).start()
-        transportTwo.connect(TEST, HOME, transportOne.port)
+        Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
+        transportTwo.connect(HOME, transportOne.port)
 
+        transportOne.waitForReady()
+        transportTwo.waitForReady()
         transportOne.write(CHANNEL, MESSAGE)
         transportTwo.write(CHANNEL, MESSAGE)
-        while transportOne.get(CHANNEL) is None or transportTwo.get(CHANNEL) is None:
-            continue
+
+        transportOne.waitForChannel(CHANNEL)
+        transportTwo.waitForChannel(CHANNEL)
+
         self.assertEqual(transportOne.get(CHANNEL), MESSAGE)
         self.assertEqual(transportTwo.get(CHANNEL), MESSAGE)
         self.assertTrue(transportOne.canWrite())
@@ -85,15 +114,17 @@ class TestTransportMethods(unittest.TestCase):
         start()
         transportOne = Transport(requireAck=True)
         transportTwo = Transport(requireAck=True)
-        Thread(target=transportOne.waitForConnection, args=[getUniquePort()]).start()
-        transportTwo.connect(TEST, HOME, transportOne.port)
+        Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
+        transportTwo.connect(HOME, transportOne.port)
 
+        transportOne.waitForReady()
+        transportTwo.waitForReady()
         self.assertTrue(transportOne.canWrite())
         self.assertTrue(transportTwo.canWrite())
         transportOne.write(CHANNEL, MESSAGE)
         transportTwo.write(CHANNEL, MESSAGE)
-        while transportOne.get(CHANNEL) is None or transportTwo.get(CHANNEL) is None:
-            continue
+        transportOne.waitForChannel(CHANNEL)
+        transportTwo.waitForChannel(CHANNEL)
         self.assertEqual(transportOne.get(CHANNEL), MESSAGE)
         self.assertEqual(transportTwo.get(CHANNEL), MESSAGE)
 
@@ -105,9 +136,11 @@ class TestTransportMethods(unittest.TestCase):
         start()
         transportOne = Transport()
         transportTwo = Transport()
-        Thread(target=transportOne.waitForConnection, args=[getUniquePort()]).start()
-        transportTwo.connect(TEST, HOME, transportOne.port)
+        Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
+        transportTwo.connect(HOME, transportOne.port)
 
+        transportOne.waitForReady()
+        transportTwo.waitForReady()
         self.assertTrue(transportOne.canWrite())
         self.assertTrue(transportTwo.canWrite())
         transportOne.writeSync(CHANNEL, MESSAGE)
@@ -125,15 +158,15 @@ class TestTransportMethods(unittest.TestCase):
         start()
         transportOne = Transport(useCompression=True)
         transportTwo = Transport(useCompression=True)
-        Thread(target=transportOne.waitForConnection, args=[getUniquePort()]).start()
-        transportTwo.connect(TEST, HOME, transportOne.port)
+        Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
+        transportTwo.connect(HOME, transportOne.port)
 
-        self.assertTrue(transportOne.canWrite())
-        self.assertTrue(transportTwo.canWrite())
+        transportOne.waitForReady()
+        transportTwo.waitForReady()
         transportOne.write(CHANNEL, MESSAGE)
         transportTwo.write(CHANNEL, MESSAGE)
-        while transportOne.get(CHANNEL) is None or transportTwo.get(CHANNEL) is None:
-            pass
+        transportOne.waitForChannel(CHANNEL)
+        transportTwo.waitForChannel(CHANNEL)
         self.assertEqual(transportOne.get(CHANNEL), MESSAGE)
         self.assertEqual(transportTwo.get(CHANNEL), MESSAGE)
 
@@ -141,30 +174,30 @@ class TestTransportMethods(unittest.TestCase):
         transportTwo.close()
         finish('Passed write / get with compression')
 
-    def testOneWayCloseRemote(self):
-        start()
-        transportOne = Transport()
-        transportTwo = Transport()
-        Thread(target=transportOne.waitForConnection, args=[getUniquePort()]).start()
-        transportTwo.connect(TEST, HOME, transportOne.port)
-        transportOne.close()
-        while transportOne.opened or transportTwo.opened:
-            pass
-        self.assertTrue(transportOne.stopped)
-        self.assertFalse(transportOne.opened)
-        self.assertTrue(transportTwo.stopped)
-        self.assertFalse(transportTwo.opened)
-        finish('Passed one way close (remote)')
+    # def testOneWayCloseRemote(self):
+    #     start()
+    #     transportOne = Transport()
+    #     transportTwo = Transport()
+    #     Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
+    #     transportTwo.connect(HOME, transportOne.port)
+    #     transportOne.close()
+    #     transportOne.waitForClose()
+    #     transportTwo.waitForClose()
+    #     self.assertTrue(transportOne.stopped)
+    #     self.assertFalse(transportOne.opened)
+    #     self.assertTrue(transportTwo.stopped)
+    #     self.assertFalse(transportTwo.opened)
+    #     finish('Passed one way close (remote)')
 
     def testOneWayCloseLocal(self):
         start()
         transportOne = Transport()
         transportTwo = Transport()
-        Thread(target=transportOne.waitForConnection, args=[getUniquePort()]).start()
-        transportTwo.connect(TEST, HOME, transportOne.port)
+        Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
+        transportTwo.connect(HOME, transportOne.port)
         transportTwo.close()
-        while transportOne.opened or transportTwo.opened:
-            pass
+        transportOne.waitForClose()
+        transportTwo.waitForClose()
         self.assertTrue(transportOne.stopped)
         self.assertFalse(transportOne.opened)
         self.assertTrue(transportTwo.stopped)
@@ -175,13 +208,13 @@ class TestTransportMethods(unittest.TestCase):
         start()
         transportOne = Transport()
         transportTwo = Transport()
-        Thread(target=transportOne.waitForConnection, args=[getUniquePort()]).start()
-        transportTwo.connect(TEST, HOME, transportOne.port)
+        Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
+        transportTwo.connect(HOME, transportOne.port)
 
-        image = cv2.imread('beatles.jpg')
+        # pylint: disable=no-member
+        image = cv2.imread('test/beatles.jpg')
         transportTwo.writeImage(image)
-        while transportOne.getImage() is None:
-            time.sleep(0.01)
+        transportOne.waitForImage()
         self.assertTrue((transportOne.getImage() == image).all())
         transportOne.close()
         transportTwo.close()
@@ -191,10 +224,11 @@ class TestTransportMethods(unittest.TestCase):
         start()
         transportOne = Transport()
         transportTwo = Transport()
-        Thread(target=transportOne.waitForConnection, args=[getUniquePort()]).start()
-        transportTwo.connect(TEST, HOME, transportOne.port)
+        Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
+        transportTwo.connect(HOME, transportOne.port)
 
-        image = cv2.imread('beatles.jpg')
+        # pylint: disable=no-member
+        image = cv2.imread('test/beatles.jpg')
         transportTwo.writeImageSync(image)
         self.assertTrue((transportOne.getImage() == image).all())
         transportOne.close()
@@ -205,13 +239,13 @@ class TestTransportMethods(unittest.TestCase):
         start()
         transportOne = Transport(useCompression=True)
         transportTwo = Transport(useCompression=True)
-        Thread(target=transportOne.waitForConnection, args=[getUniquePort()]).start()
-        transportTwo.connect(TEST, HOME, transportOne.port)
+        Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
+        transportTwo.connect(HOME, transportOne.port)
 
-        image = cv2.imread('beatles.jpg')
+        # pylint: disable=no-member
+        image = cv2.imread('test/beatles.jpg')
         transportTwo.writeImage(image)
-        while transportOne.getImage() is None:
-            time.sleep(0.01)
+        transportOne.waitForImage()
         self.assertTrue((transportOne.getImage() == image).all())
         transportOne.close()
         transportTwo.close()

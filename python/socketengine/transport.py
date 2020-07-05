@@ -1,10 +1,9 @@
 import socket
-import time
-from threading import Thread, Lock
+from threading import Thread, Lock, Event
 from zlib import compress, decompress
 from zlib import error as zlibError
 from google import protobuf
-from .common import encodeImg, decodeImg, generateSocket
+from .engine_commons import encodeImg, decodeImg, generateSocket
 from .message_pb2 import SocketMessage
 
 #################
@@ -15,7 +14,7 @@ from .constants import ACK, IMAGE, TIMEOUT, SIZE
 from .constants import CLOSING, NAME_CONN
 
 DELIMITER = b'\0\0\0'
-WAIT_TIMEOUT = 10
+DELIMITER_SIZE = len(DELIMITER)
 
 ###############################################################
 
@@ -23,12 +22,16 @@ WAIT_TIMEOUT = 10
 ### TRANSPORT CLASS ###
 #######################
 
-# pylint: disable=invalid-name, consider-using-enumerate, no-member
+# pylint: disable=invalid-name, consider-using-enumerate, no-member, too-many-instance-attributes
 class Transport:
     TYPE_LOCAL = 1
     TYPE_REMOTE = 2
 
-    def __init__(self, name=None, timeout=TIMEOUT, size=SIZE, useCompression=False, requireAck=False, enableBuffer=False):
+    # fmt: off
+    def __init__(
+            self, name=None, timeout=TIMEOUT, size=SIZE, useCompression=False, requireAck=False, enableBuffer=False
+    ):
+    # fmt: on
         self.name = name
         self.channels = {}
         self.timeout = timeout
@@ -46,6 +49,13 @@ class Transport:
         self.waitingBuffer = []
         self.parseLock = Lock()
         self.writeLock = Lock()
+        self.closeEvent = Event()
+        self.openEvent = Event()
+        self.nameEvent = Event()
+        self.writeAvailableEvent = Event()
+        self.writeAvailableEvent.set()
+        self.channelListener = None
+        self.channelEvent = Event()
 
     def receive(self, socketConnection, addr, port):
         self.socket = socketConnection
@@ -53,7 +63,6 @@ class Transport:
         self.port = port
         self.socket.settimeout(self.timeout)
         self.type = Transport.TYPE_REMOTE
-        self.opened = True
         self.__start()
 
     def __start(self):
@@ -63,25 +72,27 @@ class Transport:
         return self
 
     def __run(self):
-        tmp = b''
+        buff = b''
         foundDelimiter = False
+        self.opened = True
+        self.openEvent.set()
         while True:
             if self.stopped:
                 return
 
             try:
                 read = self.socket.recv(self.size)
-                if DELIMITER in tmp[-3:] + read:
+                if DELIMITER in buff[-DELIMITER_SIZE:] + read:
                     foundDelimiter = True
-                tmp += read
+                buff += read
             except socket.timeout:
                 continue
             except OSError:
                 self.__close()
 
-            if tmp != b'' and foundDelimiter:
+            if buff != b'' and foundDelimiter:
                 with self.parseLock:
-                    tmp = self.__processMessage(tmp)
+                    buff = self.__processMessage(buff)
                     foundDelimiter = False
 
             self.__sendWaitingMessages()
@@ -92,19 +103,19 @@ class Transport:
             message = self.waitingBuffer.pop(0)
             self.__sendAll(message)
 
-    def __processMessage(self, tmp):
-        data = tmp.split(DELIMITER)
+    def __processMessage(self, buff):
+        messages = buff.split(DELIMITER)
         if self.compress:
-            for i in range(len(data)):
+            for i in range(len(messages)):
                 try:
-                    data[i] = decompress(data[i])
+                    messages[i] = decompress(messages[i])
                 except zlibError:
                     continue
 
-        for i in range(len(data)):
+        for i in range(len(messages)):
             message = SocketMessage()
             try:
-                message.ParseFromString(data[i])
+                message.ParseFromString(messages[i])
             except protobuf.message.DecodeError:
                 continue
 
@@ -112,19 +123,23 @@ class Transport:
                 self.channels[IMAGE] = decodeImg(message.data)
             elif message.data != '':
                 self.channels[message.type] = message.data
+            if message.type == self.channelListener:
+                self.channelEvent.set()
             self.__cascade(message)
-            data[i] = b''
+            messages[i] = b''
 
-        return b''.join(data)
+        return b''.join(messages)
 
     def __cascade(self, message):
         meta = message.meta
         if meta == ACK:
             self.writeAvailable = True
+            self.writeAvailableEvent.set()
         elif meta == CLOSING:
             self.__close()
         elif meta == NAME_CONN:
             self.name = message.data
+            self.nameEvent.set()
         if message.ackRequired:
             self.__ack()
 
@@ -143,9 +158,11 @@ class Transport:
             with self.writeLock:
                 if self.ackRequired and not overrideAck:
                     message.ackRequired = True
+
                 # pylint: disable=singleton-comparison
                 if message.ackRequired == True:
                     self.writeAvailable = False
+                    self.writeAvailableEvent.clear()
 
                 toSend = message.SerializeToString()
                 if self.compress:
@@ -161,13 +178,13 @@ class Transport:
         self.stopped = True
         self.socket.close()
         self.opened = False
+        self.closeEvent.set()
 
     #################
     ### INTERFACE ###
     #################
 
-    def connect(self, name, addr, port):
-        self.name = name
+    def connect(self, addr, port):
         self.addr = addr
         self.port = port
         while True:
@@ -175,20 +192,14 @@ class Transport:
                 self.socket = generateSocket(self.timeout)
                 self.socket.connect((self.addr, self.port))
                 break
-            except (socket.timeout, socket.gaierror):
+            except (socket.timeout, socket.gaierror, OSError) as error:
                 self.socket.close()
-                continue
-            except OSError as error:
-                self.socket.close()
-                if isinstance(error, ConnectionRefusedError):
-                    continue
-                raise RuntimeError('Socket address in use: {}'.format(error))
+                if isinstance(error, OSError) and not isinstance(error, ConnectionRefusedError):
+                    raise RuntimeError('Socket address in use: {}'.format(error))
         self.type = Transport.TYPE_LOCAL
-        self.opened = True
-        self.__writeMeta(NAME_CONN, self.name)
         self.__start()
 
-    def waitForConnection(self, port):
+    def openForConnection(self, port):
         self.port = port
         while True:
             try:
@@ -196,12 +207,10 @@ class Transport:
                 self.socket.bind(('', self.port))
                 self.socket.listen()
                 break
-            except OSError as error:
+            except (socket.timeout, OSError) as error:
                 self.socket.close()
-                raise RuntimeError('Socket address in use: {}'.format(error))
-            except socket.timeout:
-                self.socket.close()
-                continue
+                if isinstance(error, OSError):
+                    raise RuntimeError('Socket address in use: {}'.format(error))
         while True:
             try:
                 conn, addr = self.socket.accept()
@@ -213,6 +222,10 @@ class Transport:
             except (OSError, socket.timeout):
                 continue
 
+    def assignName(self, name):
+        self.name = name
+        self.__writeMeta(NAME_CONN, self.name)
+
     def get(self, channel):
         with self.parseLock:
             return self.channels[channel] if channel in self.channels.keys() else None
@@ -223,6 +236,12 @@ class Transport:
     def canWrite(self):
         return (self.writeAvailable and self.opened and not self.stopped) or self.enableBuffer
 
+    def waitForReady(self):
+        if self.enableBuffer:
+            return True
+        self.openEvent.wait()
+        return self.writeAvailableEvent.wait()
+
     def write(self, channel, data, requireAck=False):
         message = SocketMessage()
         message.type = channel.replace('\n', '')
@@ -230,15 +249,6 @@ class Transport:
         if requireAck:
             message.ackRequired = True
         self.__sendAll(message)
-
-    # Experimental function. Use carefully
-    def writeSync(self, channel, data):
-        self.write(channel, data, requireAck=True)
-        start = time.time()
-        while not self.writeAvailable:
-            if time.time() - start > WAIT_TIMEOUT:
-                raise RuntimeError('Maximum timeout exceeded waiting for acknowledgement')
-            time.sleep(0.01)
 
     def writeImage(self, data, requireAck=False):
         message = SocketMessage()
@@ -248,18 +258,41 @@ class Transport:
             message.ackRequired = True
         self.__sendAll(message)
 
-    # Experimental function. Use carefully
-    def writeImageSync(self, data):
-        self.writeImage(data, requireAck=True)
-        start = time.time()
-        while not self.writeAvailable:
-            if time.time() - start > WAIT_TIMEOUT:
-                raise RuntimeError('Maximum timeout exceeded waiting for acknowledgement')
-            time.sleep(0.01)
-
     def close(self):
         try:
             self.__writeMeta(CLOSING)
         except OSError:
             pass
         self.__close()
+
+    #############################
+    ### SYNCHRONOUS INTERFACE ###
+    #############################
+
+    def waitForClose(self):
+        return self.closeEvent.wait()
+
+    def waitForOpen(self):
+        return self.openEvent.wait()
+
+    def waitForName(self):
+        return self.nameEvent.wait()
+
+    def waitForChannel(self, channel):
+        if self.get(channel) is not None:
+            return True
+        self.channelEvent.clear()
+        self.channelListener = channel
+        while not self.channelEvent.isSet():
+            self.channelEvent.wait()
+
+    def waitForImage(self):
+        return self.waitForChannel(IMAGE)
+
+    def writeImageSync(self, data):
+        self.writeImage(data, requireAck=True)
+        return self.writeAvailableEvent.wait()
+
+    def writeSync(self, channel, data):
+        self.write(channel, data, requireAck=True)
+        return self.writeAvailableEvent.wait()

@@ -1,1 +1,0 @@
-python3 transport.test.py && python3 hub.test.py && python3 hub.stress.test.py

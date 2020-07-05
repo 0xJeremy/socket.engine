@@ -15,3 +15,7 @@ This library requires Python3. It was tested extensively on Python 3.7.5 with Ub
 [Hub Connections](https://github.com/0xJeremy/socket.engine/blob/master/python/docs/Hub_Documentation.md)
 
 [Host / Client Connections](https://github.com/0xJeremy/socket.engine/blob/master/python/docs/HostClient_Documentation.md)
+
+## Tests
+
+To run tests, be in the `socket.engine/python` directory, and use `python3 -m unittest test.[test name]`

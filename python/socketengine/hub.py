@@ -1,6 +1,6 @@
 import socket
 from threading import Thread
-from .common import generateSocket
+from .engine_commons import generateSocket
 from .transport import Transport
 
 #################
@@ -74,7 +74,8 @@ class Hub:
 
     def connect(self, name, addr, port):
         transport = Transport(self.timeout, self.size)
-        transport.connect(name, addr, port)
+        transport.connect(addr, port)
+        transport.assignName(name)
         self.transports.append(transport)
         return self
 

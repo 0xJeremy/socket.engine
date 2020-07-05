@@ -1,17 +1,9 @@
 #!/usr/bin/env python3
 
-import sys
-import os
 import unittest
 import time
-
-PACKAGE_PARENT = ".."
-SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
-sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
-
-# pylint: disable=wrong-import-position, no-member, too-many-branches, no-name-in-module, bad-continuation
 from socketengine import Hub
-from common import TIMEOUT, TEST, HOME, TEXT, start, finish, initialize
+from .common import TIMEOUT, TEST, HOME, TEXT, start, finish, initialize
 
 # pylint: disable=unused-variable
 class TestTransportMethods(unittest.TestCase):
@@ -47,6 +39,7 @@ class TestTransportMethods(unittest.TestCase):
         self.stressHighSpeed(num=5000, bidirectional=True, size=4096)
         finish('Extreme Throughput Test Passed')
 
+    # pylint: disable=too-many-branches
     def multiTransports(self, numConn=10, messages=10, bidirectional=False, size=256):
         hubOne = Hub(timeout=TIMEOUT, size=size)
         hubTwo = Hub(timeout=TIMEOUT, size=size)
@@ -135,6 +128,7 @@ class TestTransportMethods(unittest.TestCase):
         self.stressTest(stress=25, messages=5000)
         finish('Stress Test (v4) Passed')
 
+    # pylint: disable=too-many-branches
     def multiHubStresstest(self, stress=5, messages=1000):
         hubs = []
         for i in range(stress):

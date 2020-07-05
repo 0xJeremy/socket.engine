@@ -3,7 +3,7 @@ from threading import Thread, Lock
 from json import dumps as dictToJson
 from json import loads as jsonToDict
 from json.decoder import JSONDecodeError
-from .common import encodeImg, generateSocket
+from .engine_commons import encodeImg, generateSocket
 
 #################
 ### CONSTANTS ###

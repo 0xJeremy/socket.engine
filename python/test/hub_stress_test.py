@@ -1,20 +1,13 @@
 #!/usr/bin/env python3
 
-import sys
-import os
 import unittest
 import time
-
-PACKAGE_PARENT = ".."
-SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
-sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
-
-# pylint: disable=wrong-import-position, no-member, too-many-branches, no-name-in-module, bad-continuation
 from socketengine import Hub
-from common import TIMEOUT, HOME, TEXT, start, finish
+from .common import TIMEOUT, HOME, TEXT, start, finish
 
 # pylint: disable=unused-variable
 class TestTransportMethods(unittest.TestCase):
+    # pylint: disable=too-many-branches
     def multiTransports(self, numConn=10, messages=10, bidirectional=False, size=256):
         hubOne = Hub(timeout=TIMEOUT, size=size)
         hubTwo = Hub(timeout=TIMEOUT, size=size)
@@ -54,6 +47,7 @@ class TestTransportMethods(unittest.TestCase):
         self.multiTransports(numConn=25, messages=1000, bidirectional=True, size=2048)
         finish('Multi-Connection Stress Test Passed')
 
+    # pylint: disable=too-many-branches
     def stressTest(self, stress=5, messages=1000):
         hubOne = Hub(timeout=TIMEOUT)
         hubTwo = Hub(timeout=TIMEOUT)
@@ -104,6 +98,7 @@ class TestTransportMethods(unittest.TestCase):
         self.stressTest(stress=25)
         finish('Stress Test (v3) Passed')
 
+    # pylint: disable=too-many-branches
     def multiHubStresstest(self, stress=5, messages=1000):
         hubs = []
         for i in range(stress):
