@@ -22,21 +22,18 @@ DELIMITER_SIZE = len(DELIMITER)
 ### TRANSPORT CLASS ###
 #######################
 
-# pylint: disable=invalid-name, consider-using-enumerate, no-member, too-many-instance-attributes
+# pylint: disable=invalid-name, consider-using-enumerate, no-member, too-many-instance-attributes, unused-variable
 class Transport:
-    TYPE_LOCAL = 1
-    TYPE_REMOTE = 2
-
     # fmt: off
     def __init__(
-            self, name=None, timeout=TIMEOUT, size=SIZE, useCompression=False, requireAck=False, enableBuffer=False
+            self, timeout=TIMEOUT, readSize=SIZE, useCompression=False, requireAck=False, bufferEnabled=False
     ):
     # fmt: on
-        self.name = name
+        self.name = None
         self.channels = {}
         self.callbacks = {}
         self.timeout = timeout
-        self.size = size
+        self.readSize = readSize
         self.compress = useCompression
         self.writeAvailable = True
         self.stopped = False
@@ -44,9 +41,8 @@ class Transport:
         self.socket = None
         self.addr = None
         self.port = None
-        self.type = None
         self.ackRequired = requireAck
-        self.enableBuffer = enableBuffer
+        self.bufferEnabled = bufferEnabled
         self.waitingBuffer = []
         self.parseLock = Lock()
         self.writeLock = Lock()
@@ -63,7 +59,6 @@ class Transport:
         self.addr = addr
         self.port = port
         self.socket.settimeout(self.timeout)
-        self.type = Transport.TYPE_REMOTE
         self.__start()
 
     def __start(self):
@@ -82,7 +77,7 @@ class Transport:
                 return
 
             try:
-                read = self.socket.recv(self.size)
+                read = self.socket.recv(self.readSize)
                 if DELIMITER in buff[-DELIMITER_SIZE:] + read:
                     foundDelimiter = True
                 buff += read
@@ -172,7 +167,7 @@ class Transport:
                 self.socket.sendall(toSend + DELIMITER)
 
         else:
-            if not self.enableBuffer and message.meta != CLOSING:
+            if not self.bufferEnabled and message.meta != CLOSING:
                 raise RuntimeError('Unable to write; port locked or not opened')
             self.waitingBuffer.append(message)
 
@@ -198,7 +193,6 @@ class Transport:
                 self.socket.close()
                 if isinstance(error, OSError) and not isinstance(error, ConnectionRefusedError):
                     raise RuntimeError('Socket address in use: {}'.format(error))
-        self.type = Transport.TYPE_LOCAL
         self.__start()
 
     def openForConnection(self, port):
@@ -237,7 +231,7 @@ class Transport:
         return self.channels[IMAGE] if IMAGE in self.channels.keys() else None
 
     def canWrite(self):
-        return (self.writeAvailable and self.opened and not self.stopped) or self.enableBuffer
+        return (self.writeAvailable and self.opened and not self.stopped) or self.bufferEnabled
 
     def write(self, channel, data, requireAck=False):
         message = SocketMessage()
@@ -270,7 +264,7 @@ class Transport:
     #############################
 
     def waitForReady(self):
-        if self.enableBuffer:
+        if self.bufferEnabled:
             return True
         self.openEvent.wait()
         while not self.writeAvailableEvent.isSet():

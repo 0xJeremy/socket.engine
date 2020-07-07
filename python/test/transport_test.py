@@ -27,10 +27,8 @@ class TestTransportMethods(unittest.TestCase):
 
         self.assertTrue(transportOne.opened)
         self.assertFalse(transportOne.stopped)
-        self.assertEqual(transportOne.type, Transport.TYPE_REMOTE)
         self.assertTrue(transportTwo.opened)
         self.assertFalse(transportTwo.stopped)
-        self.assertEqual(transportTwo.type, Transport.TYPE_LOCAL)
         transportOne.close()
         transportTwo.close()
         self.assertFalse(transportOne.opened)

@@ -25,10 +25,9 @@ This library requires Python3. It was tested extensively on Python 3.7.5 with Ub
 #### Transport Constructor:
 
 ```
-Transport(name, timeout, size, useCompression, requireAck, enableBuffer)
-	name = (Optional) (String) Names the socket connection
+Transport(timeout, readSize, useCompression, requireAck, enableBuffer)
 	timeout = (Optional) (Number) Sets the standard timeout of the socket (in seconds)
-	size = (Optional) (Number) Sets the default read size of the socket
+	readSize = (Optional) (Number) Sets the default read size of the socket
 	useCompression = (Optional) (Boolean) Determines is compression is used on the socket (default False)
 	requireAck = (Optional) (Boolean) Determines if each message requires confirmation once received (default False)
 	enableBuffer = (Optional) (Boolean) Determines if messages can be buffered and sent at some point later

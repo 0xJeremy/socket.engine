@@ -25,10 +25,13 @@ This library requires Python3. It was tested extensively on Python 3.7.5 with Ub
 #### Router Constructor
 
 ```
-Router(port, timeout, size)
+Router(port, timeout, readSize, useCompression, requireAck, bufferEnabled, findOpenPort)
 	port = (Optional) (Number) Port Transport to use with socket
 	timeout = (Optional) (Number) Sets the standard timeout of a socket (in seconds)
-	size = (Optional) (Number) Default read size of socket
+	readSize = (Optional) (Number) Default read size of socket
+	useCompression = (Optional) (Boolean) Sets if compression should be used on Transports
+	requireAck = (Optional) (Boolean) Sets if all Transports should require acknowledgements after sending messages
+	findOpenPort = (Optional) (Boolean) Will cycle through ports until one is open. This will OVERRIDE any specified ports; use with caution.
 ```
 
 #### Opening Connections
@@ -67,14 +70,6 @@ Router.getByName(name, channel)
 	name = (Required) (String)
 	Returns a list of all data received over a specified channel of Transports with the same name. Returns an empty list if no data exists.
 
-Router.getLocal(channel)
-	channel = (Required) (String)
-	Returns a list of all data received over a specified channel by Transports initiated by the Router. Returns an empty list if no data exists.
-
-Router.getRemote(channel)
-	channel = (Required) (String)
-	Returns a list of all data received over a specified channel by Transports initiated by a remote Router. Returns an empty list if no data exists.
-
 Router.writeAll(channel, data)
 	channel = (Required) (String)
 	data = (Required) (String)
@@ -86,16 +81,6 @@ Router.writeToName(name, channel, data)
 	data = (Required) (String)
 	Writes the specified string to all connected Transports on the specified channel if the Transport name matches.
 
-Router.writeToLocal(channel, data)
-	channel = (Required) (String)
-	data = (Required) (String)
-	Writes the specified string to all locally initiated Transports on the specified channel.
-
-Router.writeToRemote(channel, data)
-	channel = (Required) (String)
-	data = (Required) (String)
-	Writes the specified string to all remotely initiated Transports on the specified channel.
-
 Router.writeImageAll(data)
 	data = (Required) (Numpy Image)
 	Writes the given image to all connected Transports.
@@ -105,13 +90,6 @@ Router.writeImageToName(name, data)
 	data = (Required) (Numpy Image)
 	Writes the given image to all Transports with the specified name.
 
-Router.writeImageToLocal(data)
-	data = (Required) (Numpy Image)
-	Writes the given image to all Transports initiated locally.
-
-Router.writeImageToRemote(data)
-	data = (Required) (Numpy Image)
-	Writes the given image to all Transports initiated remotely.
 ```
 
 #### Synchronous Interface

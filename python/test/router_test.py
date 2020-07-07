@@ -20,8 +20,8 @@ from .common import (
 class TestTransportMethods(unittest.TestCase):
     def testRouterTransportSetup(self):
         start()
-        routerOne = Router(timeout=TIMEOUT)
-        routerTwo = Router(timeout=TIMEOUT)
+        routerOne = Router(timeout=TIMEOUT, findOpenPort=True)
+        routerTwo = Router(timeout=TIMEOUT, findOpenPort=True)
         self.assertTrue(routerOne.opened)
         self.assertFalse(routerOne.stopped)
         self.assertTrue(routerTwo.opened)
@@ -41,8 +41,8 @@ class TestTransportMethods(unittest.TestCase):
 
     def testTransportSetup(self):
         start()
-        routerOne = Router(timeout=TIMEOUT)
-        routerTwo = Router(timeout=TIMEOUT)
+        routerOne = Router(timeout=TIMEOUT, findOpenPort=True)
+        routerTwo = Router(timeout=TIMEOUT, findOpenPort=True)
         routerOne.connect(CHANNEL, HOME, routerTwo.port)
         routerOne.waitForTransport()
         routerTwo.waitForTransport()
@@ -71,8 +71,8 @@ class TestTransportMethods(unittest.TestCase):
 
     def testEmptyMessages(self):
         start()
-        routerOne = Router(timeout=TIMEOUT)
-        routerTwo = Router(timeout=TIMEOUT)
+        routerOne = Router(timeout=TIMEOUT, findOpenPort=True)
+        routerTwo = Router(timeout=TIMEOUT, findOpenPort=True)
         self.assertEqual(routerOne.getAll(TEST), [])
         self.assertEqual(routerOne.getAll(TEST_2), [])
         self.assertEqual(routerTwo.getAll(TEST), [])
@@ -89,8 +89,8 @@ class TestTransportMethods(unittest.TestCase):
 
     def testOnewayMessages(self):
         start()
-        routerOne = Router(timeout=TIMEOUT)
-        routerTwo = Router(timeout=TIMEOUT)
+        routerOne = Router(timeout=TIMEOUT, findOpenPort=True)
+        routerTwo = Router(timeout=TIMEOUT, findOpenPort=True)
         self.assertEqual(routerOne.getAll(TEST), [])
         self.assertEqual(routerOne.getAll(TEST_2), [])
         self.assertEqual(routerTwo.getAll(TEST), [])
@@ -140,8 +140,8 @@ class TestTransportMethods(unittest.TestCase):
         routerTwo.close()
         finish('Bidirectional messages Test Passed')
 
-    def stressHighSpeed(self, num=10, bidirectional=False, size=256):
-        routerOne, routerTwo = initialize(size=size)
+    def stressHighSpeed(self, num=10, bidirectional=False, readSize=256):
+        routerOne, routerTwo = initialize(readSize=readSize)
         for i in range(num):
             routerOne.writeToNameWhenReady(TEST, 'test{}'.format(i), TEXT)
             if bidirectional:
@@ -172,12 +172,12 @@ class TestTransportMethods(unittest.TestCase):
 
     # def testOnewayHighThroughput(self):
     #     start()
-    #     self.stressHighSpeed(num=1000, size=2048)
+    #     self.stressHighSpeed(num=1000, readSize=2048)
     #     finish('One-way High Throughput Test Passed')
 
-    def multiTransports(self, numConn=10, messages=10, bidirectional=False, size=256):
-        routerOne = Router(timeout=TIMEOUT, size=size)
-        routerTwo = Router(timeout=TIMEOUT, size=size)
+    def multiTransports(self, numConn=10, messages=10, bidirectional=False, readSize=256):
+        routerOne = Router(timeout=TIMEOUT, findOpenPort=True, readSize=readSize)
+        routerTwo = Router(timeout=TIMEOUT, findOpenPort=True, readSize=readSize)
         for i in range(numConn):
             routerOne.connect('Test{}'.format(i), HOME, routerTwo.port)
 

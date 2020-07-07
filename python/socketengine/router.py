@@ -8,7 +8,6 @@ from .transport import Transport
 #################
 
 from .constants import PORT, TIMEOUT, SIZE
-from .constants import MAX_RETRIES
 
 ###############################################################
 
@@ -16,14 +15,28 @@ from .constants import MAX_RETRIES
 ### HUB CLASS ###
 #################
 
-# pylint: disable=unused-variable, invalid-name, too-many-public-methods
+# pylint: disable=invalid-name, unused-variable
 class Router:
-    def __init__(self, port=None, timeout=TIMEOUT, size=SIZE):
+    # fmt:off
+    def __init__(
+            self,
+            port=PORT,
+            timeout=TIMEOUT,
+            readSize=SIZE,
+            useCompression=False,
+            requireAck=False,
+            bufferEnabled=False,
+            findOpenPort=False,
+    ):
+    # fmt:on
         self.socket = None
-        self.userDefinedPort = port is not None
-        self.port = port or PORT
+        self.port = port
         self.timeout = timeout
-        self.size = size
+        self.readSize = readSize
+        self.useCompression = useCompression
+        self.requireAck = requireAck
+        self.bufferEnabled = bufferEnabled
+        self.findOpenPort = findOpenPort
         self.transports = []
         self.transportAddresses = []
         self.stopped = False
@@ -39,27 +52,22 @@ class Router:
                 self.socket.bind(('', self.port))
                 self.socket.listen()
                 return
-            except OSError as error:
+            except (OSError, socket.timeout) as error:
                 self.socket.close()
-                if self.userDefinedPort or self.port > (PORT + MAX_RETRIES):
-                    raise RuntimeError('Socket address in use: {}'.format(error))
-                self.port += 1
-            except socket.timeout:
-                self.socket.close()
-                continue
+                if isinstance(error, OSError):
+                    if not self.findOpenPort:
+                        raise RuntimeError('Socket address in use: {}'.format(error))
+                    self.port += 1
 
     def __start(self):
         if self.socket is None:
             raise RuntimeError('Router started without host socket')
-        self.opened = True
         Thread(target=self.__run, args=()).start()
         return self
 
     def __run(self):
-        while True:
-            if self.stopped:
-                return
-
+        self.opened = True
+        while not self.stopped:
             try:
                 conn, addr = self.socket.accept()
                 if addr not in self.transportAddresses:
@@ -73,7 +81,13 @@ class Router:
 
     def __addTransport(self, addr, port, localInitiation, name=None, connection=None):
         self.transportEvent.clear()
-        transport = Transport(timeout=self.timeout, size=self.size)
+        transport = Transport(
+            timeout=self.timeout,
+            readSize=self.readSize,
+            useCompression=self.useCompression,
+            requireAck=self.requireAck,
+            bufferEnabled=self.bufferEnabled,
+        )
         if localInitiation:
             transport.connect(addr, port)
             transport.assignName(name)
@@ -135,24 +149,6 @@ class Router:
                     data.append(tmp)
         return data
 
-    def getLocal(self, channel):
-        data = []
-        for transport in self.transports:
-            if transport.type == transport.TYPE_LOCAL:
-                tmp = transport.get(channel)
-                if tmp is not None:
-                    data.append(tmp)
-        return data
-
-    def getRemote(self, channel):
-        data = []
-        for transport in self.transports:
-            if transport.type == transport.TYPE_REMOTE:
-                tmp = transport.get(channel)
-                if tmp is not None:
-                    data.append(tmp)
-        return data
-
     ##########################
     ### INTERFACE, WRITERS ###
     ##########################
@@ -168,18 +164,6 @@ class Router:
                 transport.write(channel, data)
         return self
 
-    def writeToLocal(self, channel, data):
-        for transport in self.transports:
-            if transport.type == transport.TYPE_REMOTE:
-                transport.write(channel, data)
-        return self
-
-    def writeToRemote(self, channel, data):
-        for transport in self.transports:
-            if transport.type == transport.TYPE_LOCAL:
-                transport.write(channel, data)
-        return self
-
     def writeImageAll(self, data):
         for transport in self.transports:
             transport.writeImg(data)
@@ -188,18 +172,6 @@ class Router:
     def writeImageToName(self, name, data):
         for transport in self.transports:
             if transport.name == name:
-                transport.writeImg(data)
-        return self
-
-    def writeImageToLocal(self, data):
-        for transport in self.transports:
-            if transport.type == transport.TYPE_REMOTE:
-                transport.writeImg(data)
-        return self
-
-    def writeImageToRemote(self, data):
-        for transport in self.transports:
-            if transport.type == transport.TYPE_LOCAL:
                 transport.writeImg(data)
         return self
 

@@ -19,7 +19,6 @@ PORT = 8080
 TIMEOUT = 2
 SIZE = 256
 OPEN = True
-MAX_RETRIES = 99
 
 ####################
 ### STATUS TYPES ###
