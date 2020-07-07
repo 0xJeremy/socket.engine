@@ -3,6 +3,7 @@
 const EventEmitter = require('events').EventEmitter;
 const inherits = require('util').inherits;
 const net = require('net');
+const SocketMessage = require('socketmessage').SocketMessage;
 
 // ///////////////
 // / CONSTANTS ///
@@ -29,19 +30,24 @@ const {
 // / TRANSPORT CLASS ///
 // /////////////////////
 
-function Transport(name, timeout = TIMEOUT, maxSize = MAXSIZE) {
+function Transport(timeout=TIMEOUT, readSize=Size, useCompression=false, requireAck=false, bufferEnabled=false) {
   EventEmitter.call(this);
-  this.name = name;
+  this.name = null;
+  this.channels = {};
+  // TODO: add socket timeouts
+  this.timeout = timeout;
+  this.readSize = readSize;
+  this.compress = useCompression
+  this.writeAvailable = true;
+  this.stopped = false;
+  this.opened = false;
   this.socket = null;
   this.addr = null;
   this.port = null;
-  this.canWrite = true;
-  this.channels = {};
-  this.timeout = timeout;
-  this.stopped = false;
-  this.opened = false;
-  this.type = null;
-  this.maxSize = maxSize;
+  this.ackRequired = requireAck;
+  this.bufferEnabled = bufferEnabled;
+  // TODO: add high water mark
+  // this.maxSize = maxSize;
   this.lastData = new Date().getTime();
   this.msgBuffer = '';
   this.listener = null;
@@ -50,8 +56,6 @@ function Transport(name, timeout = TIMEOUT, maxSize = MAXSIZE) {
     this.socket = socket;
     this.addr = addr;
     this.port = port;
-    this.type = TYPE_REMOTE;
-    this.opened = true;
     this.__start();
   };
 
@@ -60,30 +64,25 @@ function Transport(name, timeout = TIMEOUT, maxSize = MAXSIZE) {
   };
 
   this.__run = function() {
+    this.opened = true;
+    this.foundDelimiter = false;
+
     this.socket.on('data', (bytes) => {
-      this.msgBuffer += bytes.toString();
-      if (this.msgBuffer != '' && this.msgBuffer != '\n') {
-        const data = this.msgBuffer.split('\n');
-
-        for (let i = 0; i < data.length; i++) {
-          try {
-            if (data[i] == '') {
-              continue;
-            }
-            const msg = JSON.parse(data[i]);
-            this.__cascade(msg[TYPE], msg[DATA]);
-            if (msg[TYPE] == IMAGE) {
-              this.channels[IMAGE] = decodeImg(msg[DATA]);
-            } else {
-              this.channels[msg[TYPE]] = msg[DATA];
-            }
-
-            this.emit(msg[TYPE], msg[DATA]);
-            this.emit('data', msg);
-          } catch (err) {}
-        }
+      const read = bytes.toString();
+      // TODO: add last bit of buffer here
+      if (read.includes(DELIMITER)) {
+        this.foundDelimiter = true;
       }
+      this.msgBuffer += read;
+
+      if (this.msgBuffer != '' && this.foundDelimiter) {
+        this.__processMessage();
+        this.foundDelimiter = false;
+      }
+
+      this.__sendWaitingMessages();
     });
+    
     this.socket.on('end', () => {
       this.emit('end');
     });
@@ -93,22 +92,66 @@ function Transport(name, timeout = TIMEOUT, maxSize = MAXSIZE) {
     });
   };
 
-  this.__cascade = function(mtype, mdata) {
-    if (mtype == ACK) {
-      this.canWrite = true;
+  this.__sendWaitingMessages = function() {
+    for (let i = 0; i < this.waitingBuffer.length; i++) {
+      this.__sendAll(self.waitingBuffer.shift());
     }
-    if (mtype == STATUS) {
-      if (mdata == CLOSING) {
-        this.__close();
+  }
+
+  this.__processMessage = function() {
+    const messages = this.msgBuffer.split(DELIMITER);
+    if (this.compress) {
+      // TODO: pull in zlib compression
+      throw new Error('Not implemented.');
+    }
+    for (let i = 0; i < messages.length; i++) {
+      const message = new SocketMessage();
+      message.ParseFromString(messages[i]);
+
+      if (message.type == IMAGE) {
+        this.channels[IMAGE] = decodeImg(message.data)
+      } else if (message.data != '') {
+        this.channels[message.type] = message.data;
       }
+
+      this.__cascade(message);
+      messages[i] = '';
     }
-    if (mtype == NAME_CONN) {
-      this.name = mdata;
+    this.msgBuffer = messages.join('');
+  }
+
+  this.__cascade = function(message) {
+    meta = message.meta;
+    if (meta == ACK) {
+      this.writeAvailable = true;
+      this.emit('writeAvailable');
+    } else if (meta == CLOSING) {
+      this.__close();
+    } else if (meta == NAME_CONN) {
+      this.name = message.data;
+      this.emit('name');
     }
-    if (mtype == IMAGE) {
-      this.write(ACK, ACK);
+    if (message.ackRequired) {
+      this.__ack();
     }
   };
+
+  this.__ack = function() {
+    this.__writeMeta(ACK)
+  }
+
+  this.__writeMeta = function(meta, data=null) {
+    const message = new SocketMessage();
+    message.meta = meta;
+    if (data) {
+      message.data = data;
+    }
+    self.__sendAll(message, true);
+  }
+
+  this.__sendAll = function(message, overrideAck=false) {
+    // TODO
+  }
 
   this.__close = function() {
     this.opened = false;

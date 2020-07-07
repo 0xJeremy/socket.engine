@@ -26,5 +26,10 @@
     "fs": "0.0.1-security",
     "ip": "^1.1.5",
     "net": "^1.0.2"
+  },
+  "devDependencies": {
+    "@types/events": "^3.0.0",
+    "@types/ip": "^1.1.0",
+    "@types/node": "^14.0.19"
   }
 }
