@@ -13,11 +13,11 @@ This library requires Python3. It was tested extensively on Python 3.7.5 with Ub
 ## How to use
 
 <div align="center">
-  <img src="../../graphics/transport_example_1.png" style="width:80%">
+  <img src="../../graphics/python_documentation/transport_example_1.png" style="width:80%">
 </div>
 
 <div align="center">
-  <img src="../../graphics/transport_example_2.png" style="width:80%">
+  <img src="../../graphics/python_documentation/transport_example_2.png" style="width:80%">
 </div>
 
 ## Documentation — Transport

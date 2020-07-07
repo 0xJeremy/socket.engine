@@ -1,15 +1,9 @@
 #!/usr/bin/env python3
 
-# pylint: disable=no-member, wrong-import-position
+# pylint: disable=no-member
 import sys
-import os
 import argparse
 import cv2
-
-PACKAGE_PARENT = ".."
-SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
-sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
-
 from socketengine import Transport
 
 COLOR = False
@@ -17,8 +11,8 @@ SIZE = (320, 240)
 
 
 def sendVideo():
-    transport = Transport('video')
-    transport.waitForConnection(8080)
+    transport = Transport(enableBuffer=True)
+    transport.openForConnection(8080)
     cam = cv2.VideoCapture(2)
     while True:
         _, frame = cam.read()
@@ -35,10 +29,9 @@ def sendVideo():
 
 
 def getVideo():
-    transport = Transport('video')
-    transport.connect('video', '127.0.0.1', 8080)
-    while transport.getImage() is None:
-        pass
+    transport = Transport()
+    transport.connect('127.0.0.1', 8080)
+    transport.waitForImage()
     while True:
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
@@ -49,10 +42,10 @@ def getVideo():
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='socket.engine Hub Video tester')
-    parser.add_argument('-s', '--send', help='Begins streaming video Hub', action='store_true')
+    parser = argparse.ArgumentParser(description='socket.engine Router Video tester')
+    parser.add_argument('-s', '--send', help='Begins streaming video Router', action='store_true')
     parser.add_argument(
-        '-g', '--get', help='Begins retrieving video Hub stream', action='store_true',
+        '-g', '--get', help='Begins retrieving video Router stream', action='store_true',
     )
     parser.add_argument('-c', '--color', help='Sends in color', action='store_true')
     args = parser.parse_args()

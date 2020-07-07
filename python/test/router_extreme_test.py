@@ -2,7 +2,7 @@
 
 import unittest
 import time
-from socketengine import Hub
+from socketengine import Router
 from .common import TIMEOUT, TEST, HOME, TEXT, start, finish, initialize
 
 # pylint: disable=unused-variable
@@ -41,8 +41,8 @@ class TestTransportMethods(unittest.TestCase):
 
     # pylint: disable=too-many-branches
     def multiTransports(self, numConn=10, messages=10, bidirectional=False, size=256):
-        hubOne = Hub(timeout=TIMEOUT, size=size)
-        hubTwo = Hub(timeout=TIMEOUT, size=size)
+        hubOne = Router(timeout=TIMEOUT, size=size)
+        hubTwo = Router(timeout=TIMEOUT, size=size)
         for i in range(numConn):
             hubOne.connect('Test{}'.format(i), HOME, hubTwo.port)
 
@@ -90,8 +90,8 @@ class TestTransportMethods(unittest.TestCase):
         finish('Multi-Connection Stress Test Passed')
 
     def stressTest(self, stress=5, messages=1000):
-        hubOne = Hub(timeout=TIMEOUT)
-        hubTwo = Hub(timeout=TIMEOUT)
+        hubOne = Router(timeout=TIMEOUT)
+        hubTwo = Router(timeout=TIMEOUT)
         for i in range(stress):
             if i % 2 == 0:
                 hubOne.connect('Test{}'.format(i), HOME, hubTwo.port)
@@ -129,10 +129,10 @@ class TestTransportMethods(unittest.TestCase):
         finish('Stress Test (v4) Passed')
 
     # pylint: disable=too-many-branches
-    def multiHubStresstest(self, stress=5, messages=1000):
+    def multiRouterStresstest(self, stress=5, messages=1000):
         hubs = []
         for i in range(stress):
-            hub = Hub(timeout=TIMEOUT)
+            hub = Router(timeout=TIMEOUT)
             hubs.append(hub)
 
         for hubOne in hubs:
@@ -166,14 +166,14 @@ class TestTransportMethods(unittest.TestCase):
 
     def multihostStresstestV3(self):
         start()
-        self.multiHubStresstest(stress=10, messages=5000)
+        self.multiRouterStresstest(stress=10, messages=5000)
         finish('Multi-Host Stress Test (v3) Passed')
 
     # This test read/wrote 4.412gb of data in 818.95143 seconds. (on my machine)
     # It isn't worth running usually.
     # def multi_host_stressTestV4(self):
     #   start()
-    #   self.multiHubStresstest(stress=20, messages=5000)
+    #   self.multiRouterStresstest(stress=20, messages=5000)
     #   finish('Multi-Host Stress Test (v4)')
 
 

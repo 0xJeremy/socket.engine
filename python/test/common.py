@@ -7,7 +7,7 @@ SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.
 sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
 
 # pylint: disable=wrong-import-position
-from socketengine import Hub
+from socketengine import Router
 
 # pylint: disable=unused-variable, global-statement
 
@@ -44,8 +44,8 @@ def success(message):
 
 
 def initialize(size=256):
-    hubOne = Hub(timeout=TIMEOUT, size=size)
-    hubTwo = Hub(timeout=TIMEOUT, size=size)
+    hubOne = Router(timeout=TIMEOUT, size=size)
+    hubTwo = Router(timeout=TIMEOUT, size=size)
     hubOne.connect(TEST, HOME, hubTwo.port)
     while len(hubOne.transports) == 0 or len(hubTwo.transports) == 0:
         pass

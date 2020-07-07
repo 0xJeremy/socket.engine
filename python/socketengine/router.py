@@ -17,7 +17,7 @@ from .constants import MAX_RETRIES
 #################
 
 # pylint: disable=unused-variable, invalid-name, too-many-public-methods
-class Hub:
+class Router:
     def __init__(self, port=None, timeout=TIMEOUT, size=SIZE):
         self.socket = None
         self.userDefinedPort = port is not None
@@ -50,7 +50,7 @@ class Hub:
 
     def __start(self):
         if self.socket is None:
-            raise RuntimeError('Hub started without host socket')
+            raise RuntimeError('Router started without host socket')
         self.opened = True
         Thread(target=self.__run, args=()).start()
         return self

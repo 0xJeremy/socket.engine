@@ -11,15 +11,15 @@ PACKAGE_PARENT = ".."
 SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
 sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
 
-from socketengine import Hub
+from socketengine import Router
 
 COLOR = False
 SIZE = (320, 240)
 
 
 def sendVideo():
-    hub = Hub(port=8080)
-    print('Started Hub on port', hub.port)
+    hub = Router(port=8080)
+    print('Started Router on port', hub.port)
     hub.connect('video', '127.0.0.1', 8081)
     print('Connected!')
     sleep(2)
@@ -40,8 +40,8 @@ def sendVideo():
 
 
 def getVideo():
-    hub = Hub(port=8081)
-    print('Started Hub on port', hub.port)
+    hub = Router(port=8081)
+    print('Started Router on port', hub.port)
     while hub.transports == []:
         pass
     transport = hub.transports[0]
@@ -58,10 +58,10 @@ def getVideo():
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='socket.engine Hub Video tester')
-    parser.add_argument('-s', '--send', help='Begins streaming video Hub', action='store_true')
+    parser = argparse.ArgumentParser(description='socket.engine Router Video tester')
+    parser.add_argument('-s', '--send', help='Begins streaming video Router', action='store_true')
     parser.add_argument(
-        '-g', '--get', help='Begins retrieving video Hub stream', action='store_true',
+        '-g', '--get', help='Begins retrieving video Router stream', action='store_true',
     )
     parser.add_argument('-c', '--color', help='Sends in color', action='store_true')
     args = parser.parse_args()
