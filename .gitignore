@@ -2,5 +2,6 @@ __pycache__/
 *.pyc
 *.html
 node_modules/
+nodejs/node_modules/
 *.o
 *.gch
