@@ -95,6 +95,7 @@ Router.writeImageToName(name, data)
 #### Synchronous Interface
 
 NOTE: These are all blocking actions until they complete.
+
 ```
 Router.writeAllWhenReady(channel, data)
 	channel = (Required) (String)

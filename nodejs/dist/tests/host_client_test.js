@@ -1,30 +1,23 @@
 "use strict";
-
 const assertion = require("assert");
 const Host = require("../index").Host;
 const Client = require("../index").Client;
-
 const DEBUG = false;
 const DELAY = 1000;
-
 // //////////////////////
 // / HELPER FUNCTIONS ///
 // //////////////////////
-
 function report(text) {
   if (DEBUG) {
     console.log("\x1b[33m[%s]\x1b[0m", text);
   }
 }
-
 function success(text) {
   console.log("\x1b[32m[%s]\x1b[0m", text);
 }
-
 function failure(text) {
   console.log("\x1b[31m[%s]\x1b[0m", text);
 }
-
 function initialize(port = 8080) {
   const h = new Host("127.0.0.1", port);
   const c = new Client("127.0.0.1", port);
@@ -34,11 +27,9 @@ function initialize(port = 8080) {
   report("Sockets started");
   return [h, c];
 }
-
 function assert(v1, v2) {
   assertion.deepEqual(v1, v2);
 }
-
 function verify(a1, a2) {
   for (let i = 0; i < a1.length; i++) {
     for (let j = 0; j < a2.length; j++) {
@@ -52,9 +43,7 @@ function verify(a1, a2) {
   }
   return true;
 }
-
 /* eslint-disable max-len, no-multi-str */
-
 const text =
   "Consulted he eagerness unfeeling deficient existence of. Calling nothing end fertile for venture way boy. Esteem spirit temper too say adieus who direct esteem. It esteems luckily mr or picture placing drawing no. Apartments frequently or motionless on reasonable projecting expression. Way mrs end gave tall walk fact bed. \
 Left till here away at to whom past. Feelings laughing at no wondered repeated provided finished. It acceptance thoroughly my advantages everything as. Are projecting inquietude affronting preference saw who. Marry of am do avoid ample as. Old disposal followed she ignorant desirous two has. Called played entire roused though for one too. He into walk roof made tall cold he. Feelings way likewise addition wandered contempt bed indulged. \
@@ -62,13 +51,10 @@ Same an quit most an. Admitting an mr disposing sportsmen. Tried on cause no spo
 Death weeks early had their and folly timed put. Hearted forbade on an village ye in fifteen. Age attended betrayed her man raptures laughter. Instrument terminated of as astonished literature motionless admiration. The affection are determine how performed intention discourse but. On merits on so valley indeed assure of. Has add particular boisterous uncommonly are. Early wrong as so manor match. Him necessary shameless discovery consulted one but. \
 Yet remarkably appearance get him his projection. Diverted endeavor bed peculiar men the not desirous. Acuteness abilities ask can offending furnished fulfilled sex. Warrant fifteen exposed ye at mistake. Blush since so in noisy still built up an again. As young ye hopes no he place means. Partiality diminution gay yet entreaties admiration. In mr it he mention perhaps attempt pointed suppose. Unknown ye chamber of warrant of norland arrived. \
 Luckily friends do ashamed to do suppose. Tried meant mr smile so. Exquisite behaviour as to middleton perfectly. Chicken no wishing waiting am. Say concerns dwelling graceful six humoured. Whether mr up savings talking an. Active mutual nor father mother exeter change six did all. ";
-
 /* eslint-enable */
-
 // ////////////////
 // / UNIT TESTS ///
 // ////////////////
-
 function testConnectionBoth() {
   const h = new Host("127.0.0.1");
   assert(h.opened, false);
@@ -85,7 +71,6 @@ function testConnectionBoth() {
   h.close();
   success("Connection test Passed");
 }
-
 function testConnectionMessageCallback() {
   const sockets = initialize(8081);
   const h = sockets[0];
@@ -105,7 +90,6 @@ function testConnectionMessageCallback() {
   c.write("connection", true);
   report("Wrote connection");
 }
-
 function testEmptyMessage() {
   const sockets = initialize(8082);
   const h = sockets[0];
@@ -118,7 +102,6 @@ function testEmptyMessage() {
   h.close();
   success("Empty messages test Passed");
 }
-
 function testHostMessage() {
   const sockets = initialize(8083);
   const h = sockets[0];
@@ -150,7 +133,6 @@ function testHostMessage() {
   c.write("Test2", "test of port 2");
   report("Wrote test messages");
 }
-
 function testClientMessage() {
   const sockets = initialize(8084);
   const h = sockets[0];
@@ -185,7 +167,6 @@ function testClientMessage() {
     report("Wrote test messages");
   }, DELAY);
 }
-
 function testBidirectionalMessage() {
   const sockets = initialize(8085);
   const h = sockets[0];
@@ -245,7 +226,6 @@ function testBidirectionalMessage() {
     c.write("Test2", "test of port 2");
   }, DELAY);
 }
-
 function testHighSpeedClient() {
   const sockets = initialize(8086);
   const h = sockets[0];
@@ -272,7 +252,6 @@ function testHighSpeedClient() {
   }
   c.write("finally", true);
 }
-
 function testHighSpeedHost() {
   const sockets = initialize(8087);
   const h = sockets[0];
@@ -301,7 +280,6 @@ function testHighSpeedHost() {
     h.write_ALL("finally", true);
   }, DELAY);
 }
-
 function testHighThroughputClient() {
   const sockets = initialize(8088);
   const h = sockets[0];
@@ -328,7 +306,6 @@ function testHighThroughputClient() {
   }
   c.write("finally", true);
 }
-
 function testHighThroughputHost() {
   const sockets = initialize(8089);
   const h = sockets[0];
@@ -357,7 +334,6 @@ function testHighThroughputHost() {
     h.write_ALL("finally", true);
   }, DELAY);
 }
-
 function main() {
   const routines = [
     testConnectionBoth,

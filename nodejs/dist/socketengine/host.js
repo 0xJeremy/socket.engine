@@ -1,27 +1,23 @@
+"use strict";
 const EventEmitter = require("events").EventEmitter;
 const inherits = require("util").inherits;
 const ip = require("ip");
-
 // ///////////////
 // / CONSTANTS ///
 // ///////////////
-
 const IMAGE = "image";
 const NEWLINE = "\n";
 const base64 = new RegExp(
   "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
 );
 const FAMILY = "IPv4";
-
 const ADDR = ip.address();
 const PORT = 8080;
 const MAXSIZE = 1500000;
 const TIMEOUT = 0;
-
 // //////////////////////
 // / CONNECTION CLASS ///
 // //////////////////////
-
 function _connection(socket, address, timeout, maxSize) {
   EventEmitter.call(this);
   this.socket = socket;
@@ -32,11 +28,9 @@ function _connection(socket, address, timeout, maxSize) {
   this.msgBuffer = "";
   this.channels = {};
   this.listener = null;
-
   // ////////////////////
   // / SOCKET ACTIONS ///
   // ////////////////////
-
   this.socket.on("data", (bytes) => {
     this.msgBuffer += bytes.toString();
     if (this.msgBuffer != "" && this.msgBuffer != "\n") {
@@ -63,19 +57,15 @@ function _connection(socket, address, timeout, maxSize) {
   this.socket.on("end", () => {
     this.emit("end");
   });
-
   this.socket.on("error", (err) => {
     this.emit("warning", err);
   });
-
   // /////////////
   // / METHODS ///
   // /////////////
-
   this.get = function (channel) {
     return this.channels[channel];
   };
-
   this.write = function (dataType, data) {
     const msg = {
       type: dataType,
@@ -83,11 +73,9 @@ function _connection(socket, address, timeout, maxSize) {
     };
     this.socket.write(JSON.stringify(msg) + NEWLINE);
   };
-
   this.close = function () {
     this.socket.destroy();
   };
-
   // Timeout handler
   if (this.timeout > 0) {
     setInterval(() => {
@@ -101,25 +89,19 @@ function _connection(socket, address, timeout, maxSize) {
     }, this.timeout);
   }
 }
-
 inherits(_connection, EventEmitter);
-
 // ////////////////
 // / HOST CLASS ///
 // ////////////////
-
 function Host(addr = ADDR, port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
   EventEmitter.call(this);
   this.net = require("net");
-
   this.addr = addr;
   this.port = port;
   this.timeout = timeout;
   this.maxSize = maxSize;
-
   this.clients = [];
   this.sockets = [];
-
   this.socketpath = {
     port: this.port,
     family: FAMILY,
@@ -127,15 +109,12 @@ function Host(addr = ADDR, port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
   };
   this.listener = null;
   this.opened = false;
-
   // ////////////
   // / SERVER ///
   // ////////////
-
   this.server = this.net.createServer((socket) => {
     this.listener = socket;
   });
-
   this.server.on("connection", (socket) => {
     for (let i = 0; i < this.sockets.length; i++) {
       if (this.sockets[i] === socket) {
@@ -160,17 +139,14 @@ function Host(addr = ADDR, port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
       this.emit("end");
     });
   });
-
   // /////////////
   // / METHODS ///
   // /////////////
-
   this.start = function () {
     this.server.listen(this.socketpath.port, this.socketpath.address);
     this.opened = true;
     return this;
   };
-
   this.get_ALL = function (channel) {
     const data = [];
     for (let i = 0; i < this.clients.length; i++) {
@@ -181,25 +157,20 @@ function Host(addr = ADDR, port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
     }
     return data;
   };
-
   this.getClients = function () {
     return this.clients;
   };
-
   this.write_ALL = function (channel, data) {
     for (let i = 0; i < this.clients.length; i++) {
       this.clients[i].write(channel, data);
     }
     return this;
   };
-
   this.close = function () {
     for (let i = 0; i < this.clients.length; i++) {
       this.clients[i].close();
     }
   };
 }
-
 inherits(Host, EventEmitter);
-
 module.exports = exports = Host;

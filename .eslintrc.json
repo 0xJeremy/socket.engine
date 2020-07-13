@@ -1,17 +1,15 @@
 {
-    "env": {
-        "es2020": true,
-        "node": true
-    },
-    "extends": [
-        "google"
-    ],
-    "parserOptions": {
-        "ecmaVersion": 11,
-        "sourceType": "module"
-    },
-    "rules": {
-        "require-jsdoc": 0,
-        "no-invalid-this": 0
-    }
+  "env": {
+    "es2020": true,
+    "node": true
+  },
+  "extends": ["google"],
+  "parserOptions": {
+    "ecmaVersion": 11,
+    "sourceType": "module"
+  },
+  "rules": {
+    "require-jsdoc": 0,
+    "no-invalid-this": 0
+  }
 }

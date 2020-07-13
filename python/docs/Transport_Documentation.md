@@ -82,6 +82,7 @@ Transport.registerCallback(channel, function):
 #### Synchronous Interface
 
 NOTE: These are all blocking actions until they complete.
+
 ```
 Transport.waitForReady()
 	Will block until the Transport is fully setup and able to write. Will return immediately if the Transport enableBuffer option is True. (This function is the conjunction of waitForOpen and canWrite.)

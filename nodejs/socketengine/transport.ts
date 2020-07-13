@@ -1,39 +1,76 @@
-import { EventEmitter } from 'events';
-import { TextEncoder } from 'util';
-import { Socket } from 'net';
-import { SocketMessage } from './socketmessage';
-import { ACK, IMAGE, CLOSING, NAME_CONN } from './constants';
+import { EventEmitter } from "events";
+import { Socket, createServer } from "net";
+import { SocketMessage } from "./socketmessage";
 
-const DELIMITER = '\0\0\0';
+/////////////////
+/// CONSTANTS ///
+/////////////////
+
+import { ACK, IMAGE, CLOSING, NAME_CONN } from "./constants";
+import { isValidImage } from "./common";
+
+const DELIMITER_STRING = "\0\0\0";
+const DELIMITER_BUFFER = Buffer.from([0, 0, 0]);
+const DELIMITER_LENGTH = DELIMITER_STRING.length;
+
+interface ITransportOptions {
+  useCompression?: boolean;
+  requireAck?: boolean;
+  bufferEnabled?: boolean;
+}
+
+///////////////////////////////////////////////////////////////
+
+///////////////////////
+/// TRANSPORT CLASS ///
+///////////////////////
 
 export class Transport extends EventEmitter {
-
   private name?: string;
   private readonly channels: Map<string, any> = new Map<string, any>();
+  private readonly useCompression: boolean = false;
+  private readonly requireAck: boolean = false;
+  private readonly bufferEnabled: boolean = false;
   private writeAvailable: boolean = true;
   private foundDelimiter: boolean = false;
   private opened: boolean = false;
   private socket!: Socket;
   private addr?: string;
   private port?: number;
-  private msgBuffer: string = '';
+  private msgBuffer: string = "";
   private readonly waitingBuffer: SocketMessage[] = [];
 
-  public constructor(private readonly useCompression: boolean, private readonly requireAck: boolean, private readonly bufferEnabled: boolean) {
+  public constructor(options?: ITransportOptions) {
     super();
     this.name = undefined;
     this.addr = undefined;
     this.port = undefined;
+    if (!options) {
+      return;
+    }
+    if (options.useCompression) {
+      this.useCompression = options.useCompression;
+    }
+    if(options.requireAck) {
+      this.requireAck = options.requireAck;
+    }
+    if(options.bufferEnabled) {
+      this.bufferEnabled = options.bufferEnabled;
+    }
   }
 
-   public connect(name: string, addr: string, port: number): void {
-    this.name = name;
+  /////////////////
+  /// INTERFACE ///
+  /////////////////
+
+  public connect(addr: string, port: number): void {
     this.addr = addr;
     this.port = port;
+    this.socket = new Socket();
     while (true) {
       try {
         this.socket.connect(this.port, this.addr, () => {
-          this.emit('connected');
+          this.emit("connected");
         });
         break;
       } catch (err) {
@@ -42,7 +79,21 @@ export class Transport extends EventEmitter {
     }
     this.opened = true;
     this.__start();
+  }
+
+  public assignName(name: string): void {
+    this.name = name;
     this.__writeMeta(NAME_CONN, this.name);
+  }
+
+  public openForConnection(port: number): void {
+    const server = createServer();
+    server.listen(port, "127.0.0.1");
+    server.on("connection", (socket) => {
+      server.close();
+      server.removeAllListeners();
+      this.receive(socket, socket.localAddress, socket.localPort);
+    });
   }
 
   public receive(socket: Socket, addr: string, port: number): void {
@@ -56,8 +107,16 @@ export class Transport extends EventEmitter {
     return this.channels.get(channel);
   }
 
-  public getImg(): unknown {
+  public getName(): string | undefined {
+    return this.name;
+  }
+
+  public getImage(): unknown {
     return this.channels.get(IMAGE);
+  }
+
+  public isOpen(): boolean {
+    return this.opened;
   }
 
   public write(channel: string, data: string): void {
@@ -77,9 +136,15 @@ export class Transport extends EventEmitter {
   public close(): void {
     try {
       this.__writeMeta(CLOSING);
-    } catch {}
+    } catch (err) {
+      console.log(err);
+    }
     this.__close();
   }
+
+  ///////////////////////
+  /// PRIVATE METHODS ///
+  ///////////////////////
 
   private __start(): void {
     return this.__run();
@@ -90,32 +155,37 @@ export class Transport extends EventEmitter {
     this.foundDelimiter = false;
 
     if (!this.socket) {
-      throw new Error('Unable to start Transport; socket does not exist.');
+      throw new Error("Unable to start Transport; socket does not exist.");
     }
 
-    this.socket.on('data', (bytes: Uint8Array) => {
-      const read = bytes.toString();
-      // TODO: add last bit of buffer here
-      if (read.includes(DELIMITER)) {
+    this.socket.on("data", (bytes: Buffer) => {
+      let read = bytes.toString();
+      if (
+        (
+          this.msgBuffer.substr(this.msgBuffer.length - DELIMITER_LENGTH) + read
+        ).indexOf(DELIMITER_STRING) !== -1
+      ) {
         this.foundDelimiter = true;
       }
-      this.msgBuffer += read.toString();
+      this.msgBuffer += read;
 
-      if (this.msgBuffer != '' && this.foundDelimiter) {
+      if (this.msgBuffer.length != 0 && this.foundDelimiter) {
         this.__processMessage();
         this.foundDelimiter = false;
       }
 
       this.__sendWaitingMessages();
     });
-    
-    this.socket.on('end', () => {
-      this.emit('end');
+
+    this.socket.on("end", () => {
+      this.emit("end");
     });
 
-    this.socket.on('error', (err) => {
-      this.emit('warning', err);
+    this.socket.on("error", (err) => {
+      this.emit("warning", err);
     });
+
+    this.emit("opened");
   }
 
   private __sendWaitingMessages(): void {
@@ -128,41 +198,44 @@ export class Transport extends EventEmitter {
   }
 
   private __processMessage(): void {
-    const messages = this.msgBuffer.split(DELIMITER);
+    const messages = this.msgBuffer.split(DELIMITER_STRING);
     if (this.useCompression) {
       // TODO: pull in zlib compression
-      throw new Error('Not implemented.');
+      throw new Error("Not implemented.");
     }
     for (let i = 0; i < messages.length; i++) {
-      // TODO: Make this more efficient
-      const encoder = new TextEncoder();
-      const message = SocketMessage.deserializeBinary(encoder.encode(messages[i]));
-
-      if (message.getType() == IMAGE) {
-        // this.channels.set(IMAGE, decodeImg(message.data));
-        this.channels.set(IMAGE, message.getData());
-      } else if (message.getData() != '') {
-        this.channels.set(message.getType(), message.getData());
+      const message = SocketMessage.deserializeBinary(
+        Buffer.from(messages[i])
+      ).toObject();
+      if (message.type == IMAGE) {
+        if (isValidImage(message.meta)) {
+          this.channels.set(IMAGE, message.data);
+        } else {
+          throw new Error("Image invalid base64!");
+        }
+      } else if (message.data != "") {
+        this.channels.set(message.type, message.data);
+        this.emit(message.type, message.data);
       }
 
       this.__cascade(message);
-      messages[i] = '';
+      messages[i] = "";
     }
-    this.msgBuffer = messages.join('');
+    this.msgBuffer = messages.join("");
   }
 
-  private __cascade(message: SocketMessage): void {
-    const meta = message.getMeta();
+  private __cascade(message: SocketMessage.AsObject): void {
+    const meta = message.meta;
     if (meta == ACK) {
       this.writeAvailable = true;
-      this.emit('writeAvailable');
+      this.emit("writeAvailable");
     } else if (meta == CLOSING) {
       this.__close();
     } else if (meta == NAME_CONN) {
-      this.name = message.getData();
-      this.emit('name');
+      this.name = message.data;
+      this.emit("name", this.name);
     }
-    if (message.getAckrequired()) {
+    if (message.ackrequired) {
       this.__ack();
     }
   }
@@ -174,7 +247,7 @@ export class Transport extends EventEmitter {
   private __writeMeta(meta: string, data?: string): void {
     const message = new SocketMessage();
     message.setMeta(meta);
-    if(data) {
+    if (data) {
       message.setData(data);
     }
     this.__sendAll(message, true);
@@ -182,29 +255,33 @@ export class Transport extends EventEmitter {
 
   private __sendAll(message: SocketMessage, overrideAck?: boolean): void {
     if ((this.writeAvailable || overrideAck) && this.opened) {
-      if (this.requireAck && !overrideAck) {
+      if (this.requireAck && overrideAck !== true) {
         message.setAckrequired(true);
       }
       if (message.getAckrequired() == true) {
         this.writeAvailable = false;
       }
-      const toSend = message.serializeBinary()
+      const toSend = Buffer.from(message.serializeBinary());
       if (this.useCompression) {
-        throw new Error('Not implemented');
+        throw new Error("Not implemented");
       }
-      this.socket.write(toSend + DELIMITER);
+
+      this.socket.write(toSend);
+      this.socket.write(DELIMITER_BUFFER);
 
       return void 0;
     }
     if (!this.bufferEnabled && message.getMeta() != CLOSING) {
-      throw new Error('Unable to write; port locked or not opened');
+      throw new Error("Unable to write; port locked or not opened");
     }
     this.waitingBuffer.push(message);
   }
 
   private __close(): void {
     this.opened = false;
-    this.socket.destroy();
+    if (this.socket) {
+      this.socket.removeAllListeners();
+      this.socket.destroy();
+    }
   }
-
 }

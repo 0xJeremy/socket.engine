@@ -16,7 +16,7 @@ from .constants import CLOSING, NAME_CONN
 DELIMITER = b'\0\0\0'
 DELIMITER_SIZE = len(DELIMITER)
 
-###############################################################
+################################################################
 
 #######################
 ### TRANSPORT CLASS ###

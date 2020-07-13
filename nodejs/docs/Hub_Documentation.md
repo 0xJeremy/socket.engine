@@ -59,10 +59,10 @@ Hub Methods:
 ```
 Hub.connect(name, addr, port):
 	Connects to another port. This Transport is named 'name', and the target is the (addr, port) specified.
-	
+
 Hub.close():
 	Closes the Hub and all Transports.
-	
+
 Hub.getConnections():
 	Returns all the Transports to the Hub as 'Transport' objects.
 

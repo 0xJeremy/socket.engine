@@ -112,25 +112,25 @@ Client Methods:
 ```
 client.set_timeout(time):
 	Sets the timeout of a socket (in seconds)
-	
+
 client.start():
 	Starts the socket thread. SHOULD ONLY BE CALLED ONCE
-	
+
 client.get(channel):
 	Reads all data from a specified channel
-	
+
 client.writeLock(channel, data):
 	Writes data on the specified channel. Uses a lock on each connection
-	
+
 client.write(channel, data):
 	Writes data on a specified channel
-	
+
 client.writeImgLock(data):
 	Writes image data over the "image" channel. This method optimized for sending entire images. Uses a lock on each connection
-	
+
 client.writeImg(data):
 	Writes image data over the "image" channel. This method optimized for sending entire images.
-	
+
 client.close():
 	Closes the connection
 ```

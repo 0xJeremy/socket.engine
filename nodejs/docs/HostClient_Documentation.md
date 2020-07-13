@@ -91,10 +91,10 @@ Client Methods:
 ```
 client.get(channel):
 	Reads all data from a specified channel
-	
+
 client.write(channel, data):
 	Writes data on a specified channel
-	
+
 client.close():
 	Closes the connection
 ```

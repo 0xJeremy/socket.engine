@@ -1,11 +1,10 @@
+"use strict";
 const EventEmitter = require("events").EventEmitter;
 const inherits = require("util").inherits;
 const Transport = require("./transport");
-
-/////////////////
-/// CONSTANTS ///
-/////////////////
-
+// ///////////////
+// / CONSTANTS ///
+// ///////////////
 const {
   FAMILY,
   PORT,
@@ -14,17 +13,13 @@ const {
   TYPE_LOCAL,
   TYPE_REMOTE,
 } = require("./constants");
-
-///////////////////////////////////////////////////////////////
-
-/////////////////
-/// HUB CLASS ///
-/////////////////
-
+// /////////////////////////////////////////////////////////////
+// ///////////////
+// / HUB CLASS ///
+// ///////////////
 function Hub(port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
   EventEmitter.call(this);
   this.net = require("net");
-
   this.socket = null;
   this.port = port;
   this.timeout = timeout;
@@ -33,18 +28,15 @@ function Hub(port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
   this.transportAddresses = [];
   this.stopped = false;
   this.opened = false;
-
   this.socketpath = {
     port: this.port,
     family: FAMILY,
     address: "127.0.0.1",
   };
   this.listener = null;
-
-  //////////////
-  /// SERVER ///
-  //////////////
-
+  // ////////////
+  // / SERVER ///
+  // ////////////
   this.__open = function () {
     this.server = this.net.createServer((socket) => {
       this.listener = socket;
@@ -53,11 +45,9 @@ function Hub(port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
     this.opened = true;
     return this;
   };
-
   this.__start = function () {
     this.__run();
   };
-
   this.__addListeners = function (t) {
     this.transports.push(t);
     t.on("data", (msg) => {
@@ -71,7 +61,6 @@ function Hub(port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
     });
     this.emit("connection", t);
   };
-
   this.__run = function () {
     this.server.on("connection", (socket) => {
       for (let i = 0; i < this.transportAddresses.length; i++) {
@@ -85,14 +74,12 @@ function Hub(port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
       this.__addListeners(t);
     });
   };
-
   this.connect = function (name, addr, port) {
     const t = new Transport(this.timeout, this.size);
     t.connect(name, addr, port);
     this.__addListeners(t);
     return this;
   };
-
   this.close = function () {
     for (let i = 0; i < this.transports.length; i++) {
       this.transports[i].close();
@@ -100,15 +87,12 @@ function Hub(port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
     this.stopped = true;
     this.opened = false;
   };
-
   this.getConnections = function () {
     return this.transports;
   };
-
-  //////////////////////////
-  /// INTERFACE, GETTERS ///
-  //////////////////////////
-
+  // ////////////////////////
+  // / INTERFACE, GETTERS ///
+  // ////////////////////////
   this.get_all = function (channel) {
     const data = [];
     for (let i = 0; i < this.transports.length; i++) {
@@ -119,7 +103,6 @@ function Hub(port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
     }
     return data;
   };
-
   this.get_by_name = function (name, channel) {
     const data = [];
     for (let i = 0; i < this.transports.length; i++) {
@@ -132,7 +115,6 @@ function Hub(port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
     }
     return data;
   };
-
   this.get_local = function (channel) {
     const data = [];
     for (let i = 0; i < this.transports.length; i++) {
@@ -145,7 +127,6 @@ function Hub(port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
     }
     return data;
   };
-
   this.get_remote = function (channel) {
     const data = [];
     for (let i = 0; i < this.transports.length; i++) {
@@ -158,18 +139,15 @@ function Hub(port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
     }
     return data;
   };
-
-  //////////////////////////
-  /// INTERFACE, WRITERS ///
-  //////////////////////////
-
+  // ////////////////////////
+  // / INTERFACE, WRITERS ///
+  // ////////////////////////
   this.write_all = function (channel, data) {
     for (let i = 0; i < this.transports.length; i++) {
       this.transports[i].write(channel, data);
     }
     return this;
   };
-
   this.write_to_name = function (name, channel, data) {
     for (let i = 0; i < this.transports.length; i++) {
       if (this.transports[i].name == name) {
@@ -178,7 +156,6 @@ function Hub(port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
     }
     return this;
   };
-
   this.write_to_local = function (channel, data) {
     for (let i = 0; i < this.transports.length; i++) {
       if (this.transports[i].type == TYPE_REMOTE) {
@@ -187,7 +164,6 @@ function Hub(port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
     }
     return this;
   };
-
   this.write_to_remote = function (channel, data) {
     for (let i = 0; i < this.transports.length; i++) {
       if (this.transports[i].type == TYPE_LOCAL) {
@@ -196,14 +172,12 @@ function Hub(port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
     }
     return this;
   };
-
   this.write_image_all = function (data) {
     for (let i = 0; i < this.transports.length; i++) {
       this.transports[i].writeImg(data);
     }
     return this;
   };
-
   this.write_image_to_name = function (name, data) {
     for (let i = 0; i < this.transports.length; i++) {
       if (this.transports[i].name == name) {
@@ -212,7 +186,6 @@ function Hub(port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
     }
     return this;
   };
-
   this.write_image_to_local = function (data) {
     for (let i = 0; i < this.transports.length; i++) {
       if (this.transports[i].type == TYPE_REMOTE) {
@@ -221,7 +194,6 @@ function Hub(port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
     }
     return this;
   };
-
   this.write_image_to_remote = function (data) {
     for (let i = 0; i < this.transports.length; i++) {
       if (this.transports[i].type == TYPE_LOCAL) {
@@ -230,11 +202,8 @@ function Hub(port = PORT, maxSize = MAXSIZE, timeout = TIMEOUT) {
     }
     return this;
   };
-
   this.__open();
   this.__start();
 }
-
 inherits(Hub, EventEmitter);
-
 module.exports = exports = Hub;

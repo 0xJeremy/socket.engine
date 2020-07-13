@@ -23,7 +23,8 @@
   },
   "homepage": "https://github.com/0xJeremy/socket.engine#readme",
   "dependencies": {
-    "ip": "1.1.5"
+    "ip": "1.1.5",
+    "google-protobuf": "3.12.2"
   },
   "devDependencies": {
     "@types/chai": "4.2.11",
