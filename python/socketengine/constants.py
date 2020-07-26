@@ -10,6 +10,9 @@ IMAGE = '__image'
 IMG_MSG_S = '{"type": "__image", "data": "'.encode()
 IMG_MSG_E = '"}'.encode()
 
+DELIMITER = b'\0\0\0'
+DELIMITER_SIZE = len(DELIMITER)
+
 ########################
 ### SOCKET CONSTANTS ###
 ########################
