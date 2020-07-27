@@ -4,7 +4,9 @@ import time
 from random import randint
 
 PACKAGE_PARENT = ".."
-SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
+SCRIPT_DIR = os.path.dirname(
+    os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__)))
+)
 sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
 
 # pylint: disable=wrong-import-position
@@ -28,9 +30,9 @@ USED_PORTS = []
 
 def getUniquePort(n=4):
     global USED_PORTS
-    port = randint(10**(n-1), (10**n)-1)
+    port = randint(10 ** (n - 1), (10 ** n) - 1)
     while port in USED_PORTS:
-        port = randint(10**(n-1), (10**n)-1)
+        port = randint(10 ** (n - 1), (10 ** n) - 1)
     USED_PORTS.append(port)
     return port
 

@@ -48,7 +48,12 @@ transport(context=zmq.Context(),
           pubsubPort=8484,
           pairBasePort=8485)
 
-transport.connect(address, connectToPublisher=False) # Will automatically connect to the remote as a direct connection. Will also connect to the remote publisher should one exist.
+transport.start() # Begins and enables connections. MUST be called before any other methods.
+
+transport.connect(address,
+                  targetBasePort=None,
+                  connectionType=Transport.DIRECT)
+# Will automatically connect to the remote address. The targetBasePort must ONLY be specified if it is overridden on the remote. Connection types are Transport.DIRECT, Transport.SUBSCRIBER, or Transport.BOTH. DIRECT will form a direct 1-to-1 connection, SUBSCRIBER will attach the subscriber to the remote publisher (the remote MUST have willPublish=True for any effect), and BOTH will attach both.
 
 transport.publish(topic, data)
 
@@ -60,6 +65,8 @@ transport.send(topic,
                requireAcknowledgement=defaultAcknowledgement)
 
 transport.get(topic, routingID=None) # This is an abstraction from .recv()
+
+transport.close()
 ```
 
 The user may choose to _override_ the internal ports used in a Transport, but by default they will be specified such that each transport will correctly bind to the remote address.

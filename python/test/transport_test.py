@@ -8,40 +8,40 @@ from .common import MESSAGE, CHANNEL, TEST, HOME, getUniquePort, start, finish
 
 # pylint: disable=unused-variable
 class TestTransportMethods(unittest.TestCase):
-    # def testConstructor(self):
-    #     start()
-    #     transport = Transport()
+    def testConstructor(self):
+        start()
+        transport = Transport()
 
-    #     self.assertFalse(transport.stopped)
-    #     self.assertFalse(transport.started)
-    #     transport.start()
-    #     self.assertFalse(transport.stopped)
-    #     self.assertTrue(transport.started)
-    #     transport.close()
-    #     self.assertTrue(transport.stopped)
-    #     self.assertFalse(transport.started)
+        self.assertFalse(transport.stopped)
+        self.assertFalse(transport.started)
+        transport.start()
+        self.assertFalse(transport.stopped)
+        self.assertTrue(transport.started)
+        transport.close()
+        self.assertTrue(transport.stopped)
+        self.assertFalse(transport.started)
 
-    #     finish('Passed Constructor and Start Test')
+        finish('Passed Constructor and Start Test')
 
-    # def testAutoConnection(self):
-    #     start()
+    def testAutoConnection(self):
+        start()
 
-    #     portOne = getUniquePort()
-    #     portTwo = getUniquePort()
-    #     transportOne = Transport(basePort=portOne)
-    #     transportTwo = Transport(basePort=portTwo)
+        portOne = getUniquePort()
+        portTwo = getUniquePort()
+        transportOne = Transport(basePort=portOne)
+        transportTwo = Transport(basePort=portTwo)
 
-    #     transportOne.start()
-    #     transportTwo.start()
+        transportOne.start()
+        transportTwo.start()
 
-    #     transportOne.connect('127.0.0.1', targetBasePort=portTwo)
+        transportOne.connect('127.0.0.1', targetBasePort=portTwo)
 
-    #     self.assertEqual(len(transportOne._directConnections), 1)
-    #     self.assertEqual(len(transportTwo._directConnections), 1)
+        self.assertEqual(len(transportOne._directConnections), 1)
+        self.assertEqual(len(transportTwo._directConnections), 1)
 
-    #     transportOne.close()
-    #     transportTwo.close()
-    #     finish('Passed openForConnection')
+        transportOne.close()
+        transportTwo.close()
+        finish('Passed Auto Connection')
 
     def testAutoConnectionMultiple(self):
         start()
@@ -54,32 +54,35 @@ class TestTransportMethods(unittest.TestCase):
         transportOne.start()
         transportTwo.start()
 
-        for i in range(2):
-            transportOne.connect('127.0.0.1', targetBasePort=portTwo)
+        numConnections = 10
 
-        self.assertEqual(len(transportOne._directConnections), 2)
-        self.assertEqual(len(transportTwo._directConnections), 2)
+        for i in range(numConnections):
+            transportOne.connect('127.0.0.1', targetBasePort=portTwo)
+            transportTwo.connect('127.0.0.1', targetBasePort=portOne)
+
+        self.assertEqual(len(transportOne._directConnections), numConnections * 2)
+        self.assertEqual(len(transportTwo._directConnections), numConnections * 2)
 
         transportOne.close()
         transportTwo.close()
-        finish('Passed openForConnection')
+        finish('Passed Auto Connect Multiple')
 
-    # def testEmptyMessages(self):
-    #     start()
+    def testEmptyMessages(self):
+        start()
 
-    #     portOne = getUniquePort()
-    #     portTwo = getUniquePort()
-    #     transportOne = Transport(basePort=portOne).start()
-    #     transportTwo = Transport(basePort=portTwo).start()
+        portOne = getUniquePort()
+        portTwo = getUniquePort()
+        transportOne = Transport(basePort=portOne).start()
+        transportTwo = Transport(basePort=portTwo).start()
 
-    #     transportOne.connect('127.0.0.1', targetBasePort=portTwo)
+        transportOne.connect('127.0.0.1', targetBasePort=portTwo)
 
-    #     self.assertIsNone(transportOne.get(CHANNEL))
-    #     self.assertIsNone(transportTwo.get(CHANNEL))
+        self.assertIsNone(transportOne.get(CHANNEL))
+        self.assertIsNone(transportTwo.get(CHANNEL))
 
-    #     transportOne.close()
-    #     transportTwo.close()
-    #     finish('Passed empty messages')
+        transportOne.close()
+        transportTwo.close()
+        finish('Passed empty messages')
 
     # def testNameAssignment(self):
     #     start()
@@ -114,28 +117,28 @@ class TestTransportMethods(unittest.TestCase):
     #     transportTwo.close()
     #     finish('Passed name assignment test')
 
-    # def testWriteAndGet(self):
-    #     start()
+    def testWriteAndGet(self):
+        start()
 
-    #     portOne = getUniquePort()
-    #     portTwo = getUniquePort()
-    #     transportOne = Transport(basePort=portOne).start()
-    #     transportTwo = Transport(basePort=portTwo).start()
+        portOne = getUniquePort()
+        portTwo = getUniquePort()
+        transportOne = Transport(basePort=portOne).start()
+        transportTwo = Transport(basePort=portTwo).start()
 
-    #     transportOne.connect('127.0.0.1', targetBasePort=portTwo)
+        transportOne.connect('127.0.0.1', targetBasePort=portTwo)
 
-    #     transportOne.send(CHANNEL, MESSAGE)
-    #     transportTwo.send(CHANNEL, MESSAGE)
+        transportOne.send(CHANNEL, MESSAGE)
+        transportTwo.send(CHANNEL, MESSAGE)
 
-    #     transportOne.waitForMessageOnTopic(CHANNEL)
-    #     transportTwo.waitForMessageOnTopic(CHANNEL)
+        transportOne.waitForMessageOnTopic(CHANNEL)
+        transportTwo.waitForMessageOnTopic(CHANNEL)
 
-    #     self.assertEqual(transportOne.get(CHANNEL), MESSAGE)
-    #     self.assertEqual(transportTwo.get(CHANNEL), MESSAGE)
+        self.assertEqual(transportOne.get(CHANNEL), MESSAGE)
+        self.assertEqual(transportTwo.get(CHANNEL), MESSAGE)
 
-    #     transportOne.close()
-    #     transportTwo.close()
-    #     finish('Passed write / get')
+        transportOne.close()
+        transportTwo.close()
+        finish('Passed write / get')
 
     # def testWriteAndGetWithAck(self):
     #     start()
