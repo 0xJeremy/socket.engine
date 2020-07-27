@@ -20,6 +20,8 @@ CONN_REQUEST = b'portplease'
 PUBSUB_PORT = 8484
 PAIR_ROUTING_PORT = 8485
 
+BASE_PORT = 8484
+
 ################################################################
 
 #######################
@@ -39,8 +41,7 @@ class Transport:
         maximumSubscriptions=-1,
         acceptIncomingConnections=True,
         willPublish=False,
-        pubsubPort=PUBSUB_PORT,
-        pairBasePort=PAIR_ROUTING_PORT,
+        basePort=8484
     ):
         self.context = context
         # self.router = router # TODO: Add plugin capability
@@ -51,9 +52,10 @@ class Transport:
         self.maximumSubscriptions = maximumSubscriptions # Maximum subscription sockets
         self.acceptIncomingConnections = acceptIncomingConnections
         self.willPublish = willPublish
-        self.pubsubPort = pubsubPort
-        self.pairRoutingPort = pairBasePort
-        self.currentPairPort = pairBasePort + 1
+
+        self.pubsubPort = basePort
+        self.pairRoutingPort = basePort + 1
+        self.currentPairPort = basePort + 2
         self.currentlyBoundPorts = []
 
         self._topics = {}
@@ -63,15 +65,6 @@ class Transport:
         self.parseLock = Lock()
         self._directConnectionsLock = Lock()
         self.closeEvent = Event()
-
-        if self.willPublish:
-            self._publisher = self._generateBindSocket(zmq.PUB, self.pubsubPort)
-            self.currentPairPort.append(self.pubsubPort)
-        else:
-            self._publisher = None
-
-        self._routingSocket = self._generateBindSocket(zmq.PAIR, self.pairRoutingPort)
-        self.currentlyBoundPorts.append(self.pairRoutingPort)
 
         self._directConnections = {}
         self._subscribers = []
@@ -117,29 +110,42 @@ class Transport:
     ### CONNECT TO REMOTE ###
     #########################
 
-    def connect(self, address, targetPort=None, connectToPublisher=False):
-        targetPort = targetPort or self.pairRoutingPort
+    def connect(self, address, targetBasePort=None, connectToPublisher=False):
+        # Fix this behavior, appears (and is) fragile
+        targetBasePort = targetBasePort + 1 or self.pairRoutingPort
+        print("targeting", targetBasePort)
         if self.maximumDirectConnection != -1 and len(self._directConnections.values()) == self.maximumDirectConnection:
             raise RuntimeError('Unable to connect to new remote; maximum limit met')
 
-        socket = self._tryForNewConnection(address, targetPort)
+        socket = self._tryForNewConnection(address, targetBasePort)
         socketUUID = self._generateSocketUUID()
+
         with self._directConnectionsLock:
             self._directConnections[socketUUID] = socket
 
         if connectToPublisher:
-            if self.subscriber is None:
-                self.subscriber = self._generateConnectSocket(zmq.SUB, address, self.pubsubPort)
-            else:
-                self.subscriber.connect('tcp://{}:{}'.format(address, self.pubsubPort))
+            self._connectToPublisher(address)
 
         return socketUUID
 
+    def _connectToPublisher(self, address):
+        if self.subscriber is None:
+            self.subscriber = self._generateConnectSocket(zmq.SUB, address, self.pubsubPort)
+        else:
+            self.subscriber.connect('tcp://{}:{}'.format(address, self.pubsubPort))
+
     def _tryForNewConnection(self, address, port):
-        socket = self._generateConnectSocket(zmq.PAIR, address, port)
+        socket = self._generateConnectSocket(zmq.REQ, address, port)
+        print("sending CONN_REQUEST to port", port)
         socket.send(CONN_REQUEST)
-        # TODO: Override the socket read timeout here
-        port = socket.recv().decode()
+        # TODO: Better define this behavior
+        while True:
+            try:
+                port = socket.recv().decode()
+                print("got message to go to port", port)
+                break
+            except zmq.error.Again:
+                continue
         socket.close()
         return self._generateConnectSocket(zmq.PAIR, address, port)
 
@@ -147,29 +153,43 @@ class Transport:
     ### ACCEPT NEW CONNECTION ###
     #############################
 
-    def _handleConnectionRequests(self, request):
+    def _getUniquePort(self):
+        while self.currentPairPort in self.currentlyBoundPorts:
+            self.currentPairPort += 1
+        return self.currentPairPort
+
+    def _handleConnectionRequests(self, address, request):
         if request != CONN_REQUEST:
             raise RuntimeError('Received a connection request without appropriate metadata')
-        while True:
-            if self.currentPairPort in self.currentlyBoundPorts:
-                self.currentlyBoundPorts += 1
-                continue
-            try:
-                socket = self._generateBindSocket(zmq.PAIR, self.currentPairPort)
-                uuid = self._generateSocketUUID()
-                with self._directConnectionsLock:
-                    self._directConnections[uuid] = socket
-                self.currentlyBoundPorts.append(self.currentPairPort)
-                break
-            except zmq.error.ZMQError:
-                self.currentPairPort  += 1
-        self._routingSocket.send('{}'.format(self.currentPairPort).encode())
+
+        portToUse = self._getUniquePort()
+        socket = self._generateBindSocket(zmq.PAIR, self.currentPairPort)
+        
+        uuid = self._generateSocketUUID()
+        with self._directConnectionsLock:
+            self._directConnections[uuid] = socket
+        self.currentlyBoundPorts.append(self.currentPairPort)
+
+        self._routingSocket.send_multipart([
+            address,
+            b'',
+            '{}'.format(self.currentPairPort).encode(),
+        ])
 
     #####################
     ### MAIN RUN LOOP ###
     #####################
 
     def start(self):
+        if self.willPublish:
+            self._publisher = self._generateBindSocket(zmq.PUB, self.pubsubPort)
+            self.currentPairPort.append(self.pubsubPort)
+        else:
+            self._publisher = None
+
+        self._routingSocket = self._generateBindSocket(zmq.ROUTER, self.pairRoutingPort)
+        self.currentlyBoundPorts.append(self.pairRoutingPort)
+
         Thread(target=self._run, args=()).start()
         self.started = True
         return self
@@ -181,8 +201,8 @@ class Transport:
                 return
 
             try:
-                connectionRequest = self._routingSocket.recv()
-                self._handleConnectionRequests(connectionRequest)
+                address, _, request = self._routingSocket.recv_multipart()
+                self._handleConnectionRequests(address, request)
             except zmq.error.Again:
                 pass
 

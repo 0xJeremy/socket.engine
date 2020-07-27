@@ -1,6 +1,7 @@
 import sys
 import os
 import time
+from random import randint
 
 PACKAGE_PARENT = ".."
 SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
@@ -19,14 +20,19 @@ PORT_TEST = 'test of port 1'
 PORT_TEST_2 = 'test of port 2'
 MESSAGE = 'message'
 HOME = '127.0.0.1'
-PORT = 8999
 START_TIME = 0
 
 
-def getUniquePort():
-    global PORT
-    PORT += 10
-    return PORT
+USED_PORTS = []
+
+
+def getUniquePort(n=4):
+    global USED_PORTS
+    port = randint(10**(n-1), (10**n)-1)
+    while port in USED_PORTS:
+        port = randint(10**(n-1), (10**n)-1)
+    USED_PORTS.append(port)
+    return port
 
 
 def start():
