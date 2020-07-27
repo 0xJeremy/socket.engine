@@ -123,7 +123,10 @@ class Transport:
 
     def _directConnect(self, address, targetBasePort):
         # Fix this behavior, appears (and is) fragile
-        targetBasePort = targetBasePort + 1 or self.pairRoutingPort
+        if self.pairRoutingPort is None:
+            targetBasePort = self.pairRoutingPort
+        else:
+            targetBasePort += 1
 
         if (
             self.maximumDirectConnection != -1

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 import unittest
-from threading import Thread
 import cv2
+import zmq
+from threading import Thread
 from socketengine import Transport
 from .common import MESSAGE, CHANNEL, TEST, HOME, getUniquePort, start, finish
 
@@ -23,16 +24,23 @@ class TestTransportMethods(unittest.TestCase):
 
         finish('Passed Constructor and Start Test')
 
+    def testPortCollision(self):
+        start()
+
+        transportOne = Transport().start()
+        transportTwo = Transport()
+        self.assertRaises(zmq.error.ZMQError, transportTwo.start)
+        transportOne.close()
+
+        finish('Passed Port Collision')
+
     def testAutoConnection(self):
         start()
 
         portOne = getUniquePort()
         portTwo = getUniquePort()
-        transportOne = Transport(basePort=portOne)
-        transportTwo = Transport(basePort=portTwo)
-
-        transportOne.start()
-        transportTwo.start()
+        transportOne = Transport(basePort=portOne).start()
+        transportTwo = Transport(basePort=portTwo).start()
 
         transportOne.connect('127.0.0.1', targetBasePort=portTwo)
 
@@ -65,7 +73,7 @@ class TestTransportMethods(unittest.TestCase):
 
         transportOne.close()
         transportTwo.close()
-        finish('Passed Auto Connect Multiple')
+        finish('Passed Auto-Connect Multiple')
 
     def testEmptyMessages(self):
         start()
@@ -83,6 +91,43 @@ class TestTransportMethods(unittest.TestCase):
         transportOne.close()
         transportTwo.close()
         finish('Passed empty messages')
+
+    def testWriteAndGet(self):
+        start()
+
+        portOne = getUniquePort()
+        portTwo = getUniquePort()
+        transportOne = Transport(basePort=portOne).start()
+        transportTwo = Transport(basePort=portTwo).start()
+
+        transportOne.connect('127.0.0.1', targetBasePort=portTwo)
+
+        transportOne.send(CHANNEL, MESSAGE)
+        transportTwo.send(CHANNEL, MESSAGE)
+
+        transportOne.waitForMessageOnTopic(CHANNEL)
+        transportTwo.waitForMessageOnTopic(CHANNEL)
+
+        self.assertEqual(transportOne.get(CHANNEL), MESSAGE)
+        self.assertEqual(transportTwo.get(CHANNEL), MESSAGE)
+
+        transportOne.close()
+        transportTwo.close()
+        finish('Passed write / get')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     # def testNameAssignment(self):
     #     start()
@@ -116,29 +161,6 @@ class TestTransportMethods(unittest.TestCase):
     #     transportOne.close()
     #     transportTwo.close()
     #     finish('Passed name assignment test')
-
-    def testWriteAndGet(self):
-        start()
-
-        portOne = getUniquePort()
-        portTwo = getUniquePort()
-        transportOne = Transport(basePort=portOne).start()
-        transportTwo = Transport(basePort=portTwo).start()
-
-        transportOne.connect('127.0.0.1', targetBasePort=portTwo)
-
-        transportOne.send(CHANNEL, MESSAGE)
-        transportTwo.send(CHANNEL, MESSAGE)
-
-        transportOne.waitForMessageOnTopic(CHANNEL)
-        transportTwo.waitForMessageOnTopic(CHANNEL)
-
-        self.assertEqual(transportOne.get(CHANNEL), MESSAGE)
-        self.assertEqual(transportTwo.get(CHANNEL), MESSAGE)
-
-        transportOne.close()
-        transportTwo.close()
-        finish('Passed write / get')
 
     # def testWriteAndGetWithAck(self):
     #     start()
