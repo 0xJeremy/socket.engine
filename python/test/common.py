@@ -1,7 +1,7 @@
 import sys
 import os
 import time
-from random import randint
+import socket as pythonSocket
 
 PACKAGE_PARENT = ".."
 SCRIPT_DIR = os.path.dirname(
@@ -25,15 +25,13 @@ HOME = '127.0.0.1'
 START_TIME = 0
 
 
-USED_PORTS = []
+def getUniquePort():
+    socket = pythonSocket.socket()
+    socket.bind(('', 0))
 
+    _, port = socket.getsockname()
+    socket.close()
 
-def getUniquePort(n=4):
-    global USED_PORTS
-    port = randint(10 ** (n - 1), (10 ** n) - 1)
-    while port in USED_PORTS:
-        port = randint(10 ** (n - 1), (10 ** n) - 1)
-    USED_PORTS.append(port)
     return port
 
 

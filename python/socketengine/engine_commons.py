@@ -1,5 +1,6 @@
 import socket
 import base64
+from uuid import uuid4
 import cv2
 import numpy as np
 
@@ -17,3 +18,23 @@ def generateSocket(timeout):
     sock.settimeout(timeout)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     return sock
+
+
+def getUUID():
+    return str(uuid4())
+
+
+# pylint: disable=fixme
+# TODO: Make this less fragile? Use socket.bind_to_random_port with zmq?
+def getOpenPort():
+    sock = socket.socket()
+    sock.bind(('', 0))
+
+    _, port = sock.getsockname()
+    sock.close()
+
+    return port
+
+
+def baseToPubSubPort(base):
+    return base + 1

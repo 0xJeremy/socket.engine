@@ -21,3 +21,5 @@ This library requires Python3. It was tested extensively on Python 3.7.5 with Ub
 ## Tests
 
 To run tests, be in the `socket.engine/python` directory, and use `python3 -m unittest test.[test name]`
+
+(Example `python3 -m unittest test.transport_test`)

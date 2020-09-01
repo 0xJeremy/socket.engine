@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 
 import unittest
-import cv2
-import zmq
 import time
-from threading import Thread
+from random import randint
+import zmq
 from socketengine import Transport
-from .common import MESSAGE, CHANNEL, TEST, HOME, getUniquePort, start, finish
+from .common import MESSAGE, CHANNEL, getUniquePort, start, finish
 
 # pylint: disable=unused-variable
 class TestTransportMethods(unittest.TestCase):
@@ -24,6 +23,65 @@ class TestTransportMethods(unittest.TestCase):
         self.assertFalse(transport.started)
 
         finish('Passed Constructor and Start Test')
+
+    def testPortBinding(self):
+        start()
+
+        transport = Transport().start()
+        context = zmq.Context()
+        # pylint: disable=no-member
+        socket = context.socket(zmq.PAIR)
+
+        def bindSocket():
+            socket.bind('tcp://*:8484')
+
+        self.assertRaises(zmq.error.ZMQError, bindSocket)
+
+        transport.close()
+
+        finish('Passed port binding test')
+
+    def testPortChanging(self):
+        start()
+        port = 5000
+
+        transport = Transport(basePort=port).start()
+        context = zmq.Context()
+        # pylint: disable=no-member
+        socket = context.socket(zmq.PAIR)
+
+        def bindSocket():
+            socket.bind('tcp://*:{}'.format(port))
+
+        self.assertRaises(zmq.error.ZMQError, bindSocket)
+
+        transport.close()
+
+        finish('Passed base port changing test')
+
+    def testPublisherPortBinding(self):
+        start()
+        port = 5000
+
+        transport = Transport(basePort=port).start()
+        context = zmq.Context()
+        # pylint: disable=no-member
+        socket = context.socket(zmq.PAIR)
+        transport.publish('test', 'testing')
+
+        def bindSocket():
+            socket.bind('tcp://*:{}'.format(port))
+
+        self.assertRaises(zmq.error.ZMQError, bindSocket)
+
+        def bindPubSubSocket():
+            socket.bind('tcp://*:{}'.format(port + 1))
+
+        self.assertRaises(zmq.error.ZMQError, bindSocket)
+
+        transport.close()
+
+        finish('Passed pub/sub port binding')
 
     def testPortCollision(self):
         start()
@@ -45,6 +103,7 @@ class TestTransportMethods(unittest.TestCase):
 
         transportOne.connect('127.0.0.1', targetBasePort=portTwo)
 
+        # pylint: disable=protected-access
         self.assertEqual(len(transportOne._directConnections), 1)
         self.assertEqual(len(transportTwo._directConnections), 1)
 
@@ -64,11 +123,11 @@ class TestTransportMethods(unittest.TestCase):
         transportTwo.start()
 
         numConnections = 10
-
         for i in range(numConnections):
             transportOne.connect('127.0.0.1', targetBasePort=portTwo)
             transportTwo.connect('127.0.0.1', targetBasePort=portOne)
 
+        # pylint: disable=protected-access
         self.assertEqual(len(transportOne._directConnections), numConnections * 2)
         self.assertEqual(len(transportTwo._directConnections), numConnections * 2)
 
@@ -116,6 +175,33 @@ class TestTransportMethods(unittest.TestCase):
         transportTwo.close()
         finish('Passed write / get')
 
+    def testMultiWriteAndGet(self):
+        start()
+
+        portOne = getUniquePort()
+        portTwo = getUniquePort()
+        transportOne = Transport(basePort=portOne).start()
+        transportTwo = Transport(basePort=portTwo).start()
+
+        transportOne.connect('127.0.0.1', targetBasePort=portTwo)
+
+        for i in range(40):
+            channel = str(randint(1000, 100000))
+            message = str(randint(1000, 100000))
+
+            transportOne.send(channel, message)
+            transportTwo.send(channel, message)
+
+            transportOne.waitForMessageOnTopic(channel)
+            transportTwo.waitForMessageOnTopic(channel)
+
+            self.assertEqual(transportOne.get(channel), message)
+            self.assertEqual(transportTwo.get(channel), message)
+
+        transportOne.close()
+        transportTwo.close()
+        finish('Passed multi- write / get')
+
     def testWriteWithRoutingID(self):
         start()
 
@@ -135,6 +221,29 @@ class TestTransportMethods(unittest.TestCase):
         transportTwo.close()
         finish('Passed write with routing ID')
 
+    def testMultipleRoutingIDs(self):
+        start()
+
+        portOne = getUniquePort()
+        portTwo = getUniquePort()
+        transportOne = Transport(basePort=portOne).start()
+        transportTwo = Transport(basePort=portTwo).start()
+
+        for i in range(10):
+            channel = str(randint(1000, 100000))
+            message = str(randint(1000, 100000))
+
+            routingID = transportOne.connect('127.0.0.1', targetBasePort=portTwo)
+
+            transportOne.send(channel, message, routingID=routingID)
+            transportTwo.waitForMessageOnTopic(channel)
+
+            self.assertEqual(transportTwo.get(channel), message)
+
+        transportOne.close()
+        transportTwo.close()
+        finish('Passed write with multiple routing IDs')
+
     def testPublishSubscribe(self):
         start()
 
@@ -143,13 +252,14 @@ class TestTransportMethods(unittest.TestCase):
         transportOne = Transport(basePort=portOne).start()
         transportTwo = Transport(basePort=portTwo).start()
 
-        transportOne.connect('127.0.0.1', targetBasePort=portTwo+1, connectionType=Transport.SUBSCRIBER)
+        transportOne.connect(
+            '127.0.0.1', targetBasePort=portTwo + 1, connectionTypes=Transport.SUBSCRIBER
+        )
         transportOne.subscribe(CHANNEL)
 
         while transportOne.get(CHANNEL) is None:
+            time.sleep(0.05)
             transportTwo.publish(CHANNEL, MESSAGE)
-        # transportTwo.publish(CHANNEL, MESSAGE)
-        # transportOne.waitForMessageOnTopic(CHANNEL)
 
         self.assertEqual(transportOne.get(CHANNEL), MESSAGE)
 
@@ -157,208 +267,167 @@ class TestTransportMethods(unittest.TestCase):
         transportTwo.close()
         finish('Passed publish / subscribe')
 
+    def testMultiPublishSubscribe(self):
+        start()
 
+        portOne = getUniquePort()
+        portTwo = getUniquePort()
+        transportOne = Transport(basePort=portOne).start()
+        transportTwo = Transport(basePort=portTwo).start()
 
+        transportOne.connect(
+            '127.0.0.1', targetBasePort=portTwo + 1, connectionTypes=Transport.SUBSCRIBER
+        )
 
+        for i in range(10):
+            channel = str(randint(1000, 100000))
+            message = str(randint(1000, 100000))
 
+            transportOne.subscribe(channel)
 
+            while transportOne.get(channel) is None:
+                time.sleep(0.05)
+                transportTwo.publish(channel, message)
 
+            self.assertEqual(transportOne.get(channel), message)
 
+        transportOne.close()
+        transportTwo.close()
+        finish('Passed multiple publish / subscribe')
 
+    def testMultipleConnections(self):
+        start()
 
-    # def testNameAssignment(self):
-    #     start()
-    #     transportOne = Transport()
-    #     transportTwo = Transport()
-    #     Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
-    #     transportTwo.connect(HOME, transportOne.port)
+        portOne = getUniquePort()
+        portTwo = getUniquePort()
+        portThree = getUniquePort()
+        transportOne = Transport(basePort=portOne).start()
+        transportTwo = Transport(basePort=portTwo).start()
+        transportThree = Transport(basePort=portThree).start()
 
-    #     transportOne.waitForReady()
-    #     transportTwo.waitForReady()
+        routingID = transportOne.connect('127.0.0.1', targetBasePort=portTwo)
+        routingIDTwo = transportThree.connect('127.0.0.1', targetBasePort=portTwo)
 
-    #     self.assertIsNone(transportOne.name)
-    #     self.assertIsNone(transportTwo.name)
-    #     transportOne.assignName(TEST)
-    #     transportTwo.waitForName()
-    #     self.assertEqual(transportOne.name, TEST)
-    #     self.assertEqual(transportTwo.name, TEST)
+        for i in range(20):
+            channelOne = str(randint(1000, 100000))
+            messageOne = str(randint(1000, 100000))
 
-    #     transportOne.name = None
-    #     transportTwo.name = None
-    #     transportOne.nameEvent.clear()
-    #     transportTwo.nameEvent.clear()
+            channelTwo = str(randint(1000, 100000))
+            messageTwo = str(randint(1000, 100000))
 
-    #     self.assertIsNone(transportOne.name)
-    #     self.assertIsNone(transportTwo.name)
-    #     transportTwo.assignName(TEST)
-    #     transportOne.waitForName()
-    #     self.assertEqual(transportOne.name, TEST)
-    #     self.assertEqual(transportTwo.name, TEST)
+            transportOne.send(channelOne, messageOne, routingID=routingID)
 
-    #     transportOne.close()
-    #     transportTwo.close()
-    #     finish('Passed name assignment test')
+            transportThree.send(channelTwo, messageTwo, routingID=routingIDTwo)
 
-    # def testWriteAndGetWithAck(self):
-    #     start()
-    #     transportOne = Transport(requireAck=True)
-    #     transportTwo = Transport(requireAck=True)
-    #     Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
-    #     transportTwo.connect(HOME, transportOne.port)
+            transportTwo.waitForMessageOnTopic(channelOne)
+            self.assertEqual(transportTwo.get(channelOne), messageOne)
 
-    #     transportOne.waitForReady()
-    #     transportTwo.waitForReady()
-    #     self.assertTrue(transportOne.canWrite())
-    #     self.assertTrue(transportTwo.canWrite())
-    #     transportOne.write(CHANNEL, MESSAGE)
-    #     transportTwo.write(CHANNEL, MESSAGE)
-    #     transportOne.waitForChannel(CHANNEL)
-    #     transportTwo.waitForChannel(CHANNEL)
-    #     self.assertEqual(transportOne.get(CHANNEL), MESSAGE)
-    #     self.assertEqual(transportTwo.get(CHANNEL), MESSAGE)
+            transportTwo.waitForMessageOnTopic(channelTwo)
+            self.assertEqual(transportTwo.get(channelTwo), messageTwo)
 
-    #     transportOne.close()
-    #     transportTwo.close()
-    #     finish('Passed write / get with ack')
+        transportOne.close()
+        transportTwo.close()
+        transportThree.close()
 
-    # def testWriteAndGetWithwriteSync(self):
-    #     start()
-    #     transportOne = Transport()
-    #     transportTwo = Transport()
-    #     Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
-    #     transportTwo.connect(HOME, transportOne.port)
+        finish('Passed write with routing ID and multiple transports')
 
-    #     transportOne.waitForReady()
-    #     transportTwo.waitForReady()
-    #     self.assertTrue(transportOne.canWrite())
-    #     self.assertTrue(transportTwo.canWrite())
-    #     transportOne.writeSync(CHANNEL, MESSAGE)
-    #     transportTwo.writeSync(CHANNEL, MESSAGE)
-    #     self.assertTrue(transportOne.canWrite())
-    #     self.assertTrue(transportTwo.canWrite())
-    #     self.assertEqual(transportOne.get(CHANNEL), MESSAGE)
-    #     self.assertEqual(transportTwo.get(CHANNEL), MESSAGE)
+    def testRequireAcknowledgement(self):
+        start()
 
-    #     transportOne.close()
-    #     transportTwo.close()
-    #     finish('Passed write / get with writeSync ack')
+        portOne = getUniquePort()
+        portTwo = getUniquePort()
+        transportOne = Transport(basePort=portOne, requireAcknowledgement=True).start()
+        transportTwo = Transport(basePort=portTwo, requireAcknowledgement=True).start()
 
-    # def testMessageCompression(self):
-    #     start()
-    #     transportOne = Transport(useCompression=True)
-    #     transportTwo = Transport(useCompression=True)
-    #     Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
-    #     transportTwo.connect(HOME, transportOne.port)
+        transportOne.connect('127.0.0.1', targetBasePort=portTwo)
 
-    #     transportOne.waitForReady()
-    #     transportTwo.waitForReady()
-    #     transportOne.write(CHANNEL, MESSAGE)
-    #     transportTwo.write(CHANNEL, MESSAGE)
-    #     transportOne.waitForChannel(CHANNEL)
-    #     transportTwo.waitForChannel(CHANNEL)
-    #     self.assertEqual(transportOne.get(CHANNEL), MESSAGE)
-    #     self.assertEqual(transportTwo.get(CHANNEL), MESSAGE)
+        transportOne.send(CHANNEL, MESSAGE)
+        transportTwo.send(CHANNEL, MESSAGE)
 
-    #     transportOne.close()
-    #     transportTwo.close()
-    #     finish('Passed write / get with compression')
+        self.assertEqual(transportOne.get(CHANNEL), MESSAGE)
+        self.assertEqual(transportTwo.get(CHANNEL), MESSAGE)
 
-    # def testOneWayCloseRemote(self):
-    #     start()
-    #     transportOne = Transport()
-    #     transportTwo = Transport()
-    #     Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
-    #     transportTwo.connect(HOME, transportOne.port)
-    #     transportOne.close()
-    #     transportOne.waitForClose()
-    #     transportTwo.waitForClose()
-    #     self.assertTrue(transportOne.stopped)
-    #     self.assertFalse(transportOne.opened)
-    #     self.assertTrue(transportTwo.stopped)
-    #     self.assertFalse(transportTwo.opened)
-    #     finish('Passed one way close (remote)')
+        transportOne.close()
+        transportTwo.close()
+        finish('Passed write / get with acknowledgement')
 
-    # def testOneWayCloseLocal(self):
-    #     start()
-    #     transportOne = Transport()
-    #     transportTwo = Transport()
-    #     Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
-    #     transportTwo.connect(HOME, transportOne.port)
-    #     transportTwo.close()
-    #     transportOne.waitForClose()
-    #     transportTwo.waitForClose()
-    #     self.assertTrue(transportOne.stopped)
-    #     self.assertFalse(transportOne.opened)
-    #     self.assertTrue(transportTwo.stopped)
-    #     self.assertFalse(transportTwo.opened)
-    #     finish('Passed one way close (local)')
+    def testMultipleRequireAcknowledgement(self):
+        start()
 
-    # def testImageWriteAndGet(self):
-    #     start()
-    #     transportOne = Transport()
-    #     transportTwo = Transport()
-    #     Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
-    #     transportTwo.connect(HOME, transportOne.port)
+        portOne = getUniquePort()
+        portTwo = getUniquePort()
+        transportOne = Transport(basePort=portOne, requireAcknowledgement=True).start()
+        transportTwo = Transport(basePort=portTwo, requireAcknowledgement=True).start()
 
-    #     # pylint: disable=no-member
-    #     image = cv2.imread('test/beatles.jpg')
-    #     transportTwo.writeImage(image)
-    #     transportOne.waitForImage()
-    #     self.assertTrue((transportOne.getImage() == image).all())
-    #     transportOne.close()
-    #     transportTwo.close()
-    #     finish('Passed image write / get')
+        transportOne.connect('127.0.0.1', targetBasePort=portTwo)
 
-    # def testImageWriteAndGetwithSync(self):
-    #     start()
-    #     transportOne = Transport()
-    #     transportTwo = Transport()
-    #     Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
-    #     transportTwo.connect(HOME, transportOne.port)
+        for i in range(20):
+            channel = str(randint(1000, 100000))
+            message = str(randint(1000, 100000))
 
-    #     # pylint: disable=no-member
-    #     image = cv2.imread('test/beatles.jpg')
-    #     transportTwo.writeImageSync(image)
-    #     self.assertTrue((transportOne.getImage() == image).all())
-    #     transportOne.close()
-    #     transportTwo.close()
-    #     finish('Passed image write / get with writeSync')
+            transportOne.send(channel, message)
+            transportTwo.send(channel, message)
 
-    # def testImageWriteAndGetWithCompression(self):
-    #     start()
-    #     transportOne = Transport(useCompression=True)
-    #     transportTwo = Transport(useCompression=True)
-    #     Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
-    #     transportTwo.connect(HOME, transportOne.port)
+            self.assertEqual(transportOne.get(channel), message)
+            self.assertEqual(transportTwo.get(channel), message)
 
-    #     # pylint: disable=no-member
-    #     image = cv2.imread('test/beatles.jpg')
-    #     transportTwo.writeImage(image)
-    #     transportOne.waitForImage()
-    #     self.assertTrue((transportOne.getImage() == image).all())
-    #     transportOne.close()
-    #     transportTwo.close()
-    #     finish('Passed image write / get with compression')
+        transportOne.close()
+        transportTwo.close()
+        finish('Passed multiple write / get with acknowledgement')
 
-    # def testRegisterCallback(self):
-    #     start()
-    #     transportOne = Transport()
-    #     transportTwo = Transport()
-    #     Thread(target=transportOne.openForConnection, args=[getUniquePort()]).start()
-    #     transportTwo.connect(HOME, transportOne.port)
-    #     transportOne.waitForReady()
-    #     transportTwo.waitForReady()
+    def testCallbackRegistration(self):
+        start()
 
-    #     def callback(transport, channel, data):
-    #         self.assertEqual(transport, transportOne)
-    #         self.assertEqual(channel, CHANNEL)
-    #         self.assertEqual(data, TEST)
+        portOne = getUniquePort()
+        portTwo = getUniquePort()
+        transportOne = Transport(basePort=portOne).start()
+        transportTwo = Transport(basePort=portTwo).start()
 
-    #     transportOne.registerCallback(CHANNEL, callback)
-    #     transportTwo.write(CHANNEL, TEST)
-    #     transportOne.close()
-    #     transportTwo.close()
-    #     finish('Passed callback registration')
+        transportOne.connect('127.0.0.1', targetBasePort=portTwo)
+
+        # pylint: disable=attribute-defined-outside-init
+        self.callbackTriggered = False
+
+        def exampleCallback(transport, topic, data):
+            self.assertEqual(transport, transportOne)
+            self.assertEqual(topic, CHANNEL)
+            self.assertEqual(data, MESSAGE)
+            self.callbackTriggered = True
+
+        transportOne.registerCallback(CHANNEL, exampleCallback)
+
+        transportTwo.send(CHANNEL, MESSAGE)
+        transportOne.waitForMessageOnTopic(CHANNEL)
+        self.assertEqual(transportOne.get(CHANNEL), MESSAGE)
+        self.assertTrue(self.callbackTriggered)
+
+        transportOne.close()
+        transportTwo.close()
+
+        finish('Passed callback registration')
+
+    def testMessageCompression(self):
+        start()
+
+        portOne = getUniquePort()
+        portTwo = getUniquePort()
+        transportOne = Transport(basePort=portOne, compression=True).start()
+        transportTwo = Transport(basePort=portTwo, compression=True).start()
+
+        transportOne.connect('127.0.0.1', targetBasePort=portTwo)
+
+        transportOne.send(CHANNEL, MESSAGE)
+        transportTwo.send(CHANNEL, MESSAGE)
+
+        transportOne.waitForMessageOnTopic(CHANNEL)
+        transportTwo.waitForMessageOnTopic(CHANNEL)
+
+        self.assertEqual(transportOne.get(CHANNEL), MESSAGE)
+        self.assertEqual(transportTwo.get(CHANNEL), MESSAGE)
+
+        transportOne.close()
+        transportTwo.close()
+        finish('Passed write / get with compression')
 
 
 if __name__ == '__main__':

@@ -41,12 +41,7 @@ transport(context=zmq.Context(),
           timeout=0.1,
           compression=False,
           defaultAcknowledgement=True,
-          maximumDirectConnections=-1,
-          maximumSubscriptions=-1,
-          acceptIncomingConnections=True,
-          willPublish=False,
-          pubsubPort=8484,
-          pairBasePort=8485)
+          basePort=8484)
 
 transport.start() # Begins and enables connections. MUST be called before any other methods.
 
