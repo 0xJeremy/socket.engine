@@ -1,10 +1,12 @@
 import zmq
+import socket
+from uuid import uuid4
 from threading import Thread, Lock, Event
 from random import randint
 from zlib import compress, decompress
 from zlib import error as zlibError
 from google import protobuf
-from .engine_commons import encodeImg, decodeImg, generateSocket
+from .engine_commons import encodeImg, decodeImg
 from .message_pb2 import SocketMessage
 
 #################
@@ -16,6 +18,19 @@ from .constants import ACK, IMAGE, DELIMITER, DELIMITER_SIZE
 CONN_REQUEST = b'portplease'
 
 BASE_PORT = 8484
+
+def getUUID():
+    return str(uuid4())
+
+# TODO: Make this less fragile? Use socket.bind_to_random_port with zmq?
+def getOpenPort():
+    sock = socket.socket()
+    sock.bind(('', 0))
+
+    _, port = sock.getsockname()
+    sock.close()
+
+    return port
 
 ################################################################
 
@@ -36,10 +51,6 @@ class Transport:
         timeout=10,  # milliseconds
         compression=False,
         requireAcknowledgement=True,
-        maximumDirectConnection=-1,
-        maximumSubscriptions=-1,
-        acceptIncomingConnections=True,
-        willPublish=False,
         basePort=BASE_PORT,
     ):
         self.context = context
@@ -47,15 +58,9 @@ class Transport:
         self.timeout = timeout
         self.useCompression = compression
         self.requireAcknowledgement = requireAcknowledgement
-        self.maximumDirectConnection = maximumDirectConnection
-        self.maximumSubscriptions = maximumSubscriptions  # Maximum subscription sockets
-        self.acceptIncomingConnections = acceptIncomingConnections
-        self.willPublish = willPublish
 
-        self.pubsubPort = basePort
-        self.pairRoutingPort = basePort + 1
-        self.currentPairPort = basePort + 2
-        self.currentlyBoundPorts = []
+        self.pairRoutingPort = basePort
+        self.pubsubPort = basePort + 1
 
         self._topics = {}
         self._callbacks = {}
@@ -66,7 +71,8 @@ class Transport:
         self._closeEvent = Event()
 
         self._directConnections = {}
-        self._subscribers = []
+        self._subscriber = None
+        self._publisher = None
         self._pairHost = None
 
         self.stopped = False
@@ -75,12 +81,6 @@ class Transport:
     ########################
     ### HELPER FUNCTIONS ###
     ########################
-
-    def _generateSocketUUID(self, n=5):
-        uuid = randint(10 ** (n - 1), (10 ** n) - 1)
-        while uuid in list(self._directConnections.keys()):
-            uuid = randint(10 ** (n - 1), (10 ** n) - 1)
-        return uuid
 
     def _generateBindSocket(self, type, port):
         socket = self.context.socket(type)
@@ -94,28 +94,26 @@ class Transport:
         socket.connect('tcp://{}:{}'.format(address, port))
         return socket
 
-    def _ensureSubscriberExists(self):
-        if self.subscriber is not None:
+    def _ensurePublisher(self):
+        if self._publisher:
             return
-        self.subscriber = self.context.socket(zmq.SUB)
-        self.subscriber.RCVTIMEO = self.timeout  # in milliseconds
+        self._publisher = self._generateBindSocket(zmq.PUB, self.pubsubPort)
 
-    def _openNewHostPair(self):
-        if (
-            self.maximumDirectConnection != -1
-            and len(self._directConnections.values()) == self.maximumDirectConnection
-        ):
-            self._pairHost = None
-            raise RuntimeError('Not opening new pair host; maximum limit met')
+    def _ensureSubscriber(self):
+        if self._subscriber is not None:
             return
-        self._pairHost = self._generateBindSocket(zmq.PAIR, self.currentPairPort)
-        self.currentlyBoundPorts.append(self.currentPairPort)
-        self.currentPairPort += 1
+        self._subscriber = self.context.socket(zmq.SUB)
+        self._subscriber.RCVTIMEO = self.timeout  # in milliseconds
 
-    def _getUniquePort(self):
-        while self.currentPairPort in self.currentlyBoundPorts:
-            self.currentPairPort += 1
-        return self.currentPairPort
+    # Returns serialized string message
+    def createSocketMessage(self, topic, data):
+        message = SocketMessage()
+        message.type = topic
+        message.data = data
+        serialized = message.SerializeToString()
+        if self.useCompression:
+            serialized = compress(serialized)
+        return serialized
 
     ##########################
     ### CONNECTION HELPERS ###
@@ -126,21 +124,16 @@ class Transport:
         if self.pairRoutingPort is None:
             targetBasePort = self.pairRoutingPort
         else:
-            targetBasePort += 1
+            pass
+            # targetBasePort += 1
 
-        if (
-            self.maximumDirectConnection != -1
-            and len(self._directConnections.values()) == self.maximumDirectConnection
-        ):
-            raise RuntimeError('Unable to connect to new remote; maximum limit met')
-
-        socket = self._tryForNewConnection(address, targetBasePort)
-        uuid = self._generateSocketUUID()
+        socket = self._requestNewConnection(address, targetBasePort)
+        uuid = getUUID()
         self._directConnections[uuid] = socket
 
         return uuid
 
-    def _tryForNewConnection(self, address, port):
+    def _requestNewConnection(self, address, port):
         socket = self._generateConnectSocket(zmq.REQ, address, port)
         socket.send(CONN_REQUEST)
         # TODO: Better define this behavior
@@ -157,16 +150,13 @@ class Transport:
         if request != CONN_REQUEST:
             raise RuntimeError('Received a connection request without appropriate metadata')
 
-        portToUse = self._getUniquePort()
-        socket = self._generateBindSocket(zmq.PAIR, self.currentPairPort)
+        openPort = getOpenPort()
+        socket = self._generateBindSocket(zmq.PAIR, openPort)
 
-        uuid = self._generateSocketUUID()
-        self._directConnections[uuid] = socket
-
-        self.currentlyBoundPorts.append(self.currentPairPort)
+        self._directConnections[getUUID()] = socket
 
         self._routingSocket.send_multipart(
-            [address, b'', '{}'.format(self.currentPairPort).encode(),]
+            [address, b'', '{}'.format(openPort).encode(),]
         )
 
     #####################
@@ -192,12 +182,11 @@ class Transport:
                 except zmq.error.Again:
                     pass
 
-            for socket in self._subscribers:
+            if self._subscriber:
                 try:
-                    message = socket.recv()
-                    raise RuntimeError('Not implemented')  # TODO: Implement
+                    message = self._subscriber.recv()
                     self._handleSubscriptionMessage(message)
-                except zmq.error.Again:
+                except zmq.error.Again as err:
                     pass
 
     def _handleMessage(self, rawMessage):
@@ -217,20 +206,20 @@ class Transport:
         if self._topicEvents.get(message.type, False):
             self._topicEvents[message.type].set()
 
-    def _sendMessage(self, message, routingID):
-        toSend = message.SerializeToString()
-        if self.useCompression:
-            toSend = compress(toSend)
+    def _handleSubscriptionMessage(self, rawMessage):
+        # TODO: Validate this approach
+        self._handleMessage(rawMessage.split(DELIMITER)[1])
 
+    def _sendMessage(self, message, routingID):
         if routingID:
             socket = self._directConnections[routingID]
             if socket is None:
                 raise RuntimeError('Unable to send message to route ID; connection does not exist')
-            socket.send(toSend)
+            socket.send(message)
             return
 
         for socket in list(self._directConnections.values()):
-            socket.send(toSend)
+            socket.send(message)
 
     def _close(self):
         self.started = False
@@ -238,8 +227,8 @@ class Transport:
             socket.close()
         if self._publisher is not None:
             self._publisher.close()
-        for socket in self._subscribers:
-            socket.close()
+        if self._subscriber:
+            self._subscriber.close()
         self._closeEvent.set()
 
     ######################
@@ -247,19 +236,15 @@ class Transport:
     ######################
 
     def start(self):
-        if self.willPublish:
-            self._publisher = self._generateBindSocket(zmq.PUB, self.pubsubPort)
-            self.currentPairPort.append(self.pubsubPort)
-        else:
-            self._publisher = None
-
+        # Setup routing socket
         # This will sometimes fail with `zmq.error.ZMQError: Permission denied`
         # TODO: Add resiliance to this
         self._routingSocket = self._generateBindSocket(zmq.ROUTER, self.pairRoutingPort)
-        self.currentlyBoundPorts.append(self.pairRoutingPort)
 
+        # Start thread
         Thread(target=self._run, args=()).start()
         self.started = True
+
         return self
 
     def connect(self, address, targetBasePort=None, connectionType=1):
@@ -268,34 +253,24 @@ class Transport:
             uuid = self._directConnect(address, targetBasePort)
 
         if connectionType in [Transport.SUBSCRIBER, Transport.BOTH]:
-            self._ensureSubscriberExists()
-            self.subscriber.connect('tcp://{}:{}'.format(address, self.pubsubPort))
+            self._ensureSubscriber()
+            self._subscriber.connect('tcp://{}:{}'.format(address, targetBasePort or self.pubsubPort))
 
         return uuid
 
     def publish(self, topic, data):
-        if not self.willPublish:
-            raise RuntimeError(
-                'Unable to publish message; configuration specifies Transport will not publish.'
-            )
-        message = SocketMessage()
-        message.type = topic
-        message.data = data
-        toSend = message.SerializeToString()
-        if self.compression:
-            toSend = compress(toSend)
-
-        self._publisher.send(topic.encode() + DELIMITER + toSend)
+        # Ensure publisher exists, then push messages
+        self._ensurePublisher()
+        message = self.createSocketMessage(topic, data)
+        self._publisher.send(topic.encode() + DELIMITER + message)
 
     def subscribe(self, topic):
-        self._ensureSubscriberExists()
-        self.subscriber.subscribe(topic)
+        # Ensure a subscriber exists and subscribe
+        self._ensureSubscriber()
+        self._subscriber.subscribe(topic)
 
     def send(self, topic, data, routingID=None):
-        message = SocketMessage()
-        message.type = topic
-        message.data = data
-        self._sendMessage(message, routingID)
+        self._sendMessage(self.createSocketMessage(topic, data), routingID)
 
     def get(self, topic):
         return self._topics.get(topic, None)

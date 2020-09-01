@@ -3,6 +3,7 @@
 import unittest
 import cv2
 import zmq
+import time
 from threading import Thread
 from socketengine import Transport
 from .common import MESSAGE, CHANNEL, TEST, HOME, getUniquePort, start, finish
@@ -115,10 +116,46 @@ class TestTransportMethods(unittest.TestCase):
         transportTwo.close()
         finish('Passed write / get')
 
+    def testWriteWithRoutingID(self):
+        start()
 
+        portOne = getUniquePort()
+        portTwo = getUniquePort()
+        transportOne = Transport(basePort=portOne).start()
+        transportTwo = Transport(basePort=portTwo).start()
 
+        routingID = transportOne.connect('127.0.0.1', targetBasePort=portTwo)
 
+        transportOne.send(CHANNEL, MESSAGE, routingID=routingID)
+        transportTwo.waitForMessageOnTopic(CHANNEL)
 
+        self.assertEqual(transportTwo.get(CHANNEL), MESSAGE)
+
+        transportOne.close()
+        transportTwo.close()
+        finish('Passed write with routing ID')
+
+    def testPublishSubscribe(self):
+        start()
+
+        portOne = getUniquePort()
+        portTwo = getUniquePort()
+        transportOne = Transport(basePort=portOne).start()
+        transportTwo = Transport(basePort=portTwo).start()
+
+        transportOne.connect('127.0.0.1', targetBasePort=portTwo+1, connectionType=Transport.SUBSCRIBER)
+        transportOne.subscribe(CHANNEL)
+
+        while transportOne.get(CHANNEL) is None:
+            transportTwo.publish(CHANNEL, MESSAGE)
+        # transportTwo.publish(CHANNEL, MESSAGE)
+        # transportOne.waitForMessageOnTopic(CHANNEL)
+
+        self.assertEqual(transportOne.get(CHANNEL), MESSAGE)
+
+        transportOne.close()
+        transportTwo.close()
+        finish('Passed publish / subscribe')
 
 
 
